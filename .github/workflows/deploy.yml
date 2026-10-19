@@ -1,0 +1,54 @@
+name: Despliegue Automático del Sistema de Mantenimiento
+
+on:
+  push:
+    branches:
+      - main # Se ejecuta automáticamente al subir cambios a la rama main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar Código del Repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Entorno de Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'adopt'
+          java-version: '17'
+
+      - name: Instalar y Configurar Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Descargar Dependencias del Proyecto
+        run: flutter pub get
+
+      - name: Compilar Aplicación para Entorno Web
+        run: flutter build web --base-href "/${{ github.event.repository.name }}/" --release
+
+      - name: Configurar Páginas de GitHub
+        uses: actions/configure-pages@v3
+
+      - name: Empaquetar Artefactos Web
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: 'build/web'
+
+      - name: Desplegar en GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
