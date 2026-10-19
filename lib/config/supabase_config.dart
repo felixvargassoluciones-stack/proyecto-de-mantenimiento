@@ -1,6 +1,6 @@
 class SupabaseConfig {
   
-  static const String url = 'https://nmjcihoswrsknppmuafz.supabase.co/rest/v1/';
+  static const String url = 'https://nmjcihoswrsknppmuafz.supabase.co';
   
   
   static const String anonKey = 'sb_publishable_gfu0qQLmOAe6e3cyVi2u4g_wXGjQNxc';
