@@ -50,7 +50,7 @@ class AuthService {
       final perfil = await _supabase
           .from('perfiles')
           .select('nombre')
-          .eq('email', email)
+          .eq('email', email.trim()) // Agregado .trim() para limpiar espacios ocultos
           .eq('rol', 'cliente')
           .maybeSingle();
 
