@@ -40,17 +40,20 @@ class AuthService {
     await _supabase.auth.signOut();
   }
 
- // Verifica si el cliente fue pre-registrado y le crea sus credenciales de acceso
+// Verifica si el cliente fue pre-registrado y le crea sus credenciales de acceso
   Future<void> activarCuentaCliente({
     required String email,
     required String password,
   }) async {
     try {
-      // 1. Validar en la tabla de perfiles que el correo fue dado de alta por el admin
+      // Limpiamos el correo de espacios y lo pasamos por completo a minúsculas
+      final correoLimpio = email.trim().toLowerCase();
+
+      // 1. Validar en la tabla de perfiles usando el correo formateado
       final perfil = await _supabase
           .from('perfiles')
           .select('nombre')
-          .eq('email', email.trim()) // Agregado .trim() para limpiar espacios ocultos
+          .eq('email', correoLimpio)
           .eq('rol', 'cliente')
           .maybeSingle();
 
@@ -58,10 +61,9 @@ class AuthService {
         throw Exception('Este correo electrónico no está autorizado por el administrador.');
       }
 
-      // 2. Si existe, registrar el usuario en Supabase Auth de forma segura
-      // El Trigger SQL unirá este ID con el perfil existente automáticamente usando el correo
+      // 2. Registrar el usuario en Supabase Auth usando el correo formateado
       final response = await _supabase.auth.signUp(
-        email: email,
+        email: correoLimpio,
         password: password,
       );
 
@@ -69,7 +71,7 @@ class AuthService {
         throw Exception('No se pudo crear la credencial de autenticación.');
       }
     } catch (e) {
-      if (e.toString().contains('already exists')) {
+      if (e.toString().contains('already exists') || e.toString().contains('422')) {
         throw Exception('Esta cuenta ya se encuentra activa. Inicia sesión directamente.');
       }
       rethrow;
