@@ -22,14 +22,12 @@ class AdminSidebar extends StatelessWidget {
       child: Column(
         children: [
           // Sección Superior: Perfil del Administrador
-                    // Reemplaza el Container de la sección superior por esta estructura:
           Container(
             padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
             decoration: BoxDecoration(
               border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
             ),
             child: Row(
-
               children: [
                 CircleAvatar(
                   radius: 24,
@@ -66,6 +64,11 @@ class AdminSidebar extends StatelessWidget {
             index: 1,
             icono: Icons.assignment_late_rounded,
             titulo: 'Requerimientos',
+          ),
+          _buildItemMenu(
+            index: 2,
+            icono: Icons.people_alt_rounded,
+            titulo: 'Gestión de Clientes',
           ),
           const Spacer(),
           // Botón de Cerrar Sesión en la parte inferior

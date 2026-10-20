@@ -41,4 +41,42 @@ class DatabaseService {
         .update({'estado': nuevoEstado})
         .eq('id', id);
   }
+
+
+
+  // Obtener la lista de perfiles con rol de cliente
+  Future<List<Map<String, dynamic>>> obtenerClientes() async {
+    try {
+      final List<dynamic> response = await _supabase
+          .from('perfiles')
+          .select('email, nombre, creado_el')
+          .eq('rol', 'cliente')
+          .order('creado_el', ascending: false);
+      
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      throw Exception('Error al obtener clientes: $e');
+    }
+  }
+
+  // Pre-registrar un nuevo cliente desde el panel de administración
+  Future<void> registrarCliente({
+    required String nombre,
+    required String email,
+  }) async {
+    try {
+      await _supabase.from('perfiles').insert({
+        'nombre': nombre,
+        'email': email,
+        'rol': 'cliente',
+      });
+    } catch (e) {
+      throw Exception('Error al registrar el cliente en la base de datos: $e');
+    }
+  }
+
+
+
+
+
 }
