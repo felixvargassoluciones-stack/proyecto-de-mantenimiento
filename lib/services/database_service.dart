@@ -44,13 +44,14 @@ class DatabaseService {
 
 
 
-  // Obtener la lista de perfiles con rol de cliente
+    // Obtener la lista de perfiles con rol de cliente o pendientes de aprobación
+    // Obtener la lista de perfiles con rol de cliente o pendientes de aprobación
   Future<List<Map<String, dynamic>>> obtenerClientes() async {
     try {
       final List<dynamic> response = await _supabase
           .from('perfiles')
-          .select('email, nombre, creado_el')
-          .eq('rol', 'cliente')
+          .select('email, nombre, rol, creado_el')
+          .inFilter('rol', ['cliente', 'pendiente'])
           .order('creado_el', ascending: false);
       
       return List<Map<String, dynamic>>.from(response);
@@ -58,6 +59,7 @@ class DatabaseService {
       throw Exception('Error al obtener clientes: $e');
     }
   }
+
 
   // Pre-registrar un nuevo cliente desde el panel de administración
   Future<void> registrarCliente({
@@ -67,13 +69,29 @@ class DatabaseService {
     try {
       await _supabase.from('perfiles').insert({
         'nombre': nombre,
-        'email': email,
-        'rol': 'cliente',
+        'email': email.trim().toLowerCase(),
+        'rol': 'cliente', // Los creados manualmente por el admin entran autorizados directo
       });
     } catch (e) {
       throw Exception('Error al registrar el cliente en la base de datos: $e');
     }
   }
+
+  // Actualizar el rol de un cliente (Aprobación rápida del Administrador)
+  Future<void> actualizarRolCliente({
+    required String email,
+    required String nuevoRol,
+  }) async {
+    try {
+      await _supabase
+          .from('perfiles')
+          .update({'rol': nuevoRol})
+          .eq('email', email.trim().toLowerCase());
+    } catch (e) {
+      throw Exception('Error al actualizar el rol del usuario: $e');
+    }
+  }
+
 
 
 

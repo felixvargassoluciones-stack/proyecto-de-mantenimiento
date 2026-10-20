@@ -44,6 +44,29 @@ class _AdminClientesViewState extends State<AdminClientesView> {
       if (mounted) setState(() => _cargando = false);
     }
   }
+  // Nueva función para aprobar cuentas pendientes con un solo clic
+  Future<void> _autorizarCliente(String email) async {
+    setState(() => _cargando = true);
+    try {
+      await _databaseService.actualizarRolCliente(
+        email: email,
+        nuevoRol: 'cliente',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('¡Cliente autorizado con éxito!'), backgroundColor: Colors.green),
+        );
+      }
+      _cargarClientes();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
+      setState(() => _cargando = false);
+    }
+  }
 
   Future<void> _mostrarFormularioAlta() async {
     _nombreController.clear();
@@ -107,7 +130,7 @@ class _AdminClientesViewState extends State<AdminClientesView> {
   Future<void> _procesarAltaCliente() async {
     if (!_formKey.currentState!.validate()) return;
     
-    Navigator.pop(context); // Cerrar diálogo
+    Navigator.pop(context);
     setState(() => _cargando = true);
 
     try {
@@ -118,7 +141,7 @@ class _AdminClientesViewState extends State<AdminClientesView> {
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cliente pre-registrado con éxito'), backgroundColor: Colors.green),
+          const SnackBar(content: Text('Cliente registrado con éxito'), backgroundColor: Colors.green),
         );
       }
       _cargarClientes();
@@ -131,7 +154,6 @@ class _AdminClientesViewState extends State<AdminClientesView> {
       setState(() => _cargando = false);
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -154,20 +176,53 @@ class _AdminClientesViewState extends State<AdminClientesView> {
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: _clientes.length,
-                                    itemBuilder: (context, index) {
+                  itemBuilder: (context, index) {
                     final cliente = _clientes[index];
-                    return Card(
+                    final String rol = cliente['rol'] ?? 'cliente';
+                    final bool esPendiente = rol == 'pendiente';
 
+                    return Card(
                       elevation: 2,
                       margin: const EdgeInsets.only(bottom: 12),
                       child: ListTile(
-                        leading: const CircleAvatar(
-                          backgroundColor: Color(0xFFF4F6F9),
-                          child: Icon(Icons.person, color: Color(0xFF0F2537)),
+                        leading: CircleAvatar(
+                          backgroundColor: esPendiente ? Colors.orange.shade50 : const Color(0xFFF4F6F9),
+                          child: Icon(
+                            Icons.person, 
+                            color: esPendiente ? Colors.orange : const Color(0xFF0F2537),
+                          ),
                         ),
-                        title: Text(cliente['nombre'] ?? 'Sin Nombre', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        title: Row(
+                          children: [
+                            Text(cliente['nombre'] ?? 'Sin Nombre', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            const SizedBox(width: 10),
+                            // Etiqueta dinámica de estado visual
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: esPendiente ? Colors.orange.shade100 : Colors.green.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                esPendiente ? 'PENDIENTE' : 'ACTIVO',
+                                style: TextStyle(
+                                  fontSize: 10, 
+                                  fontWeight: FontWeight.bold, 
+                                  color: esPendiente ? Colors.orange.shade900 : Colors.green.shade900,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                         subtitle: Text(cliente['email'] ?? 'Sin Correo'),
-                        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                        // Botón de acción rápida condicional para aprobación instantánea
+                        trailing: esPendiente
+                            ? IconButton(
+                                icon: const Icon(Icons.check_circle, color: Colors.green, size: 28),
+                                tooltip: 'Autorizar Acceso',
+                                onPressed: () => _autorizarCliente(cliente['email'] ?? ''),
+                              )
+                            : const Icon(Icons.chevron_right, color: Colors.grey),
                       ),
                     );
                   },

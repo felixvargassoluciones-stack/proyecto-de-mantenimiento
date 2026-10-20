@@ -12,15 +12,17 @@ class LoginView extends StatefulWidget {
 
 class _LoginViewState extends State<LoginView> {
   final _formKey = GlobalKey<FormState>();
-  final _activarKey = GlobalKey<FormState>();
+  final _registrarKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _activarEmailController = TextEditingController();
-  final _activarPasswordController = TextEditingController();
-  final _authService = AuthService();
   
+  // Controladores dedicados para el nuevo flujo de Registro Abierto
+  final _nombreController = TextEditingController();
+  final _registroEmailController = TextEditingController();
+  final _registroPasswordController = TextEditingController();
+  
+  final _authService = AuthService();
   bool _cargando = false;
-
   void _intentarLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -47,7 +49,12 @@ class _LoginViewState extends State<LoginView> {
             context,
             MaterialPageRoute(builder: (_) => const ClienteHomeView()),
           );
+        } else if (rol == 'pendiente') {
+          // Bloqueo de seguridad: se revoca la sesión inmediata en Supabase Auth
+          await _authService.cerrarSesion();
+          _mostrarError('Tu cuenta está registrada, pero se encuentra pendiente de aprobación por el administrador.');
         } else {
+          await _authService.cerrarSesion();
           _mostrarError('El usuario no tiene un rol válido asignado.');
         }
       }
@@ -58,43 +65,106 @@ class _LoginViewState extends State<LoginView> {
     }
   }
 
-  Future<void> _mostrarDialogoActivacion() async {
-    _activarEmailController.clear();
-    _activarPasswordController.clear();
+  Future<void> _procesarRegistro() async {
+    if (!_registrarKey.currentState!.validate()) return;
+    Navigator.pop(context);
+    setState(() => _cargando = true);
+
+    try {
+      await _authService.registrarNuevoCliente(
+        nombre: _nombreController.text.trim(),
+        email: _registroEmailController.text.trim(),
+        password: _registroPasswordController.text.trim(),
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('¡Registro exitoso! Espera a que el administrador apruebe tu cuenta para ingresar.'), 
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 6),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        _mostrarError(e.toString().replaceAll('Exception: ', ''));
+      }
+    } finally {
+      if (mounted) setState(() => _cargando = false);
+    }
+  }
+
+  void _mostrarError(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mensaje), backgroundColor: Colors.redAccent),
+    );
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _nombreController.dispose();
+    _registroEmailController.dispose();
+    _registroPasswordController.dispose();
+    super.dispose();
+  }
+  Future<void> _mostrarDialogoRegistro() async {
+    _nombreController.clear();
+    _registroEmailController.clear();
+    _registroPasswordController.clear();
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Activar Cuenta de Cliente', 
+        title: const Text('Registro de Nuevo Cliente', 
           style: TextStyle(color: Color(0xFF0F2537), fontWeight: FontWeight.bold)),
         content: Form(
-          key: _activarKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Si el administrador ya te dio de alta, ingresa tu correo y define tu contraseña de acceso.',
-                style: TextStyle(fontSize: 13, color: Colors.grey)),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: _activarEmailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Tu Correo Pre-registrado',
-                  prefixIcon: Icon(Icons.email_outlined),
+          key: _registrarKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Ingresa tus datos para registrarte. Podrás iniciar sesión una vez que el administrador te autorice.',
+                  style: TextStyle(fontSize: 13, color: Colors.grey)),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: _nombreController,
+                  keyboardType: TextInputType.name,
+                  decoration: const InputDecoration(
+                    labelText: 'Nombre Completo',
+                    prefixIcon: Icon(Icons.person_outline),
+                  ),
+                  validator: (v) => v == null || v.trim().isEmpty ? 'Ingresa tu nombre completo' : null,
                 ),
-                validator: (v) => v == null || v.isEmpty ? 'Ingresa tu correo' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _activarPasswordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Crea tu Contraseña',
-                  prefixIcon: Icon(Icons.lock_outline),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _registroEmailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Correo Electrónico',
+                    prefixIcon: Icon(Icons.email_outlined),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Ingresa tu correo';
+                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(v.trim())) {
+                      return 'Ingresa un correo válido';
+                    }
+                    return null;
+                  },
                 ),
-                validator: (v) => v == null || v.length < 6 ? 'La contraseña debe tener mínimo 6 caracteres' : null,
-              ),
-            ],
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _registroPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Crea tu Contraseña',
+                    prefixIcon: Icon(Icons.lock_outline),
+                  ),
+                  validator: (v) => v == null || v.length < 6 ? 'La contraseña debe tener mínimo 6 caracteres' : null,
+                ),
+              ],
+            ),
           ),
         ),
         actions: [
@@ -107,50 +177,12 @@ class _LoginViewState extends State<LoginView> {
               backgroundColor: const Color(0xFF0F2537),
               foregroundColor: Colors.white,
             ),
-            onPressed: _procesarActivacion,
-            child: const Text('Activar Acceso'),
+            onPressed: _procesarRegistro,
+            child: const Text('Registrarme'),
           ),
         ],
       ),
     );
-  }
-
-  Future<void> _procesarActivacion() async {
-    if (!_activarKey.currentState!.validate()) return;
-    Navigator.pop(context);
-    setState(() => _cargando = true);
-
-    try {
-      await _authService.activarCuentaCliente(
-        email: _activarEmailController.text.trim(),
-        password: _activarPasswordController.text.trim(),
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('¡Cuenta activada con éxito! Ya puedes iniciar sesión.'), backgroundColor: Colors.green),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        _mostrarError(e.toString().replaceAll('Exception: ', ''));
-      }
-    } finally {
-      if (mounted) setState(() => _cargando = false);
-    }
-  }
-    void _mostrarError(String mensaje) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(mensaje), backgroundColor: Colors.redAccent),
-    );
-  }
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    _activarEmailController.dispose();
-    _activarPasswordController.dispose();
-    super.dispose();
   }
 
   @override
@@ -167,6 +199,7 @@ class _LoginViewState extends State<LoginView> {
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.05),
+
                 blurRadius: 15,
                 offset: const Offset(0, 5),
               ),
@@ -228,9 +261,9 @@ class _LoginViewState extends State<LoginView> {
                 ),
                 const SizedBox(height: 20),
                 TextButton(
-                  onPressed: _cargando ? null : _mostrarDialogoActivacion,
+                  onPressed: _cargando ? null : _mostrarDialogoRegistro,
                   child: const Text(
-                    '¿Eres un cliente nuevo? Activa tu cuenta aquí',
+                    '¿Eres un cliente nuevo? Regístrate aquí',
                     style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F2537)),
                   ),
                 ),

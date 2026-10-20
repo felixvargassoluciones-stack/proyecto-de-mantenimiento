@@ -40,43 +40,35 @@ class AuthService {
     await _supabase.auth.signOut();
   }
 
-// Verifica si el cliente fue pre-registrado y le crea sus credenciales de acceso
-  Future<void> activarCuentaCliente({
+  // Registra un nuevo cliente de forma abierta en el sistema con rol 'pendiente'
+  Future<void> registrarNuevoCliente({
+    required String nombre,
     required String email,
     required String password,
   }) async {
     try {
-      // Limpiamos el correo de espacios y lo pasamos por completo a minúsculas
       final correoLimpio = email.trim().toLowerCase();
 
-      // 1. Validar en la tabla de perfiles usando el correo formateado
-      final perfil = await _supabase
-          .from('perfiles')
-          .select('nombre')
-          .eq('email', correoLimpio)
-          .eq('rol', 'cliente')
-          .maybeSingle();
-
-      if (perfil == null) {
-        throw Exception('Este correo electrónico no está autorizado por el administrador.');
-      }
-
-      // 2. Registrar el usuario en Supabase Auth usando el correo formateado
+      // Registramos en Supabase Auth inyectando el nombre en los metadatos
       final response = await _supabase.auth.signUp(
         email: correoLimpio,
         password: password,
+        data: {
+          'nombre': nombre.trim(),
+        },
       );
 
       if (response.user == null) {
-        throw Exception('No se pudo crear la credencial de autenticación.');
+        throw Exception('No se pudo crear la cuenta de usuario.');
       }
     } catch (e) {
       if (e.toString().contains('already exists') || e.toString().contains('422')) {
-        throw Exception('Esta cuenta ya se encuentra activa. Inicia sesión directamente.');
+        throw Exception('Este correo ya está registrado. Intenta iniciar sesión.');
       }
       rethrow;
     }
   }
+
 
 
 
