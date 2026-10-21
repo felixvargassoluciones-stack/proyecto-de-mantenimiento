@@ -5,6 +5,7 @@ import '../../widgets/modulo_card.dart';
 import '../../widgets/resumen_item.dart';
 import 'admin_sidebar.dart';
 import 'admin_clientes_view.dart'; // Importación de la nueva vista de clientes
+import 'dart:ui';
 
 class AdminDashboardView extends StatefulWidget {
   const AdminDashboardView({super.key});
@@ -253,33 +254,44 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
         builder: (_) => AlertDialog(
           title: Text(ticket.titulo),
           content: SizedBox(
-            width: 500,
-            height: 350,
-            child: Scrollbar(
-              thumbVisibility: true, // Fuerza a Chrome a pintar la barra de desplazamiento
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: ticket.urlsFotos!.length,
-                itemBuilder: (context, idx) {
-                  return Container(
-                    width: 380, // Fuerza un ancho fijo por celda para evitar colapsos visuales en la Web
-                    margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        ticket.urlsFotos![idx],
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  );
-                },
+  width: 500,
+  height: 350,
+  child: ScrollConfiguration(
+    // CAMBIO CLAVE: Permite arrastrar el carrusel con el mouse en la PC
+    behavior: ScrollConfiguration.of(context).copyWith(
+      dragDevices: {
+        num.tryParse('1') != null ? PointerDeviceKind.mouse : PointerDeviceKind.mouse, // fallback seguro
+        PointerDeviceKind.touch,
+        PointerDeviceKind.trackpad,
+      },
+    ),
+    child: Scrollbar(
+      thumbVisibility: true,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: ticket.urlsFotos!.length,
+        itemBuilder: (context, idx) {
+          return Container(
+            width: 380,
+            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                ticket.urlsFotos![idx],
+                fit: BoxFit.cover,
               ),
             ),
-          ),
+          );
+        },
+      ),
+    ),
+  ),
+),
+
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),

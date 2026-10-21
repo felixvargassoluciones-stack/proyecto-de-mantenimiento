@@ -4,6 +4,8 @@ import '../../services/auth_service.dart';
 import '../../services/database_service.dart';
 import '../auth/login_view.dart';
 import 'crear_ticket_view.dart';
+import 'dart:ui';
+
 
 class ClienteHomeView extends StatefulWidget {
   const ClienteHomeView({super.key});
@@ -171,7 +173,7 @@ class _ClienteHomeViewState extends State<ClienteHomeView> {
   }
 
   // Modulo de visualización en carrusel optimizado para el Cliente
-  void _mostrarDialogoEvidencias(RequerimientoModel ticket) {
+   void _mostrarDialogoEvidencias(RequerimientoModel ticket) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -179,28 +181,38 @@ class _ClienteHomeViewState extends State<ClienteHomeView> {
         content: SizedBox(
           width: 500,
           height: 350,
-          child: Scrollbar(
-            thumbVisibility: true,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: ticket.urlsFotos!.length,
-              itemBuilder: (context, idx) {
-                return Container(
-                  width: 380,
-                  margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      ticket.urlsFotos![idx],
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                );
+          child: ScrollConfiguration(
+            // CAMBIO CLAVE: Soporte nativo para arrastrar con mouse en Flutter Web
+            behavior: ScrollConfiguration.of(context).copyWith(
+              dragDevices: {
+                PointerDeviceKind.mouse,
+                PointerDeviceKind.touch,
+                PointerDeviceKind.trackpad,
               },
+            ),
+            child: Scrollbar(
+              thumbVisibility: true,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: ticket.urlsFotos!.length,
+                itemBuilder: (context, idx) {
+                  return Container(
+                    width: 380,
+                    margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        ticket.urlsFotos![idx],
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
           ),
         ),
@@ -213,4 +225,5 @@ class _ClienteHomeViewState extends State<ClienteHomeView> {
       ),
     );
   }
+
 }
