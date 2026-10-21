@@ -191,72 +191,47 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                             ],
                             
                             if (_seccionActiva == 0) ...[
-                              Wrap( 
-                                spacing: 15,
-                                runSpacing: 15,
-                                children: [
-                                  SizedBox(
-                                    width: esMovil ? constraints.maxWidth : 340,
-                                    child: ModuloCard(
-                                      titulo: 'Mantenimiento Correctivo',
-                                      descripcion: 'Atención inmediata a fallas críticas reportadas.',
-                                      icono: Icons.build_circle_rounded,
-                                      colorIcono: Colors.amber.shade700,
-                                      estaSeleccionado: true,
-                                      onTap: () => setState(() => _seccionActiva = 1),
+                              esMovil
+                                  ? Wrap(
+                                      spacing: 15,
+                                      runSpacing: 15,
+                                      children: [
+                                        SizedBox(width: constraints.maxWidth, child: ModuloCard(titulo: 'Mantenimiento Correctivo', descripcion: 'Atención inmediata a fallas críticas reportadas.', icono: Icons.build_circle_rounded, colorIcono: Colors.amber.shade700, estaSeleccionado: true, onTap: () => setState(() => _seccionActiva = 1))),
+                                        SizedBox(width: constraints.maxWidth, child: ModuloCard(titulo: 'Mantenimiento Preventivo', descripcion: 'Programación de revisiones periódicas.', icono: Icons.verified_user_rounded, colorIcono: Colors.green.shade600, estaSeleccionado: false)),
+                                      ],
+                                    )
+                                  : Row(
+                                      children: [
+                                        Expanded(child: ModuloCard(titulo: 'Mantenimiento Correctivo', descripcion: 'Atención inmediata a fallas críticas reportadas.', icono: Icons.build_circle_rounded, colorIcono: Colors.amber.shade700, estaSeleccionado: true, onTap: () => setState(() => _seccionActiva = 1))),
+                                        const SizedBox(width: 20),
+                                        Expanded(child: ModuloCard(titulo: 'Mantenimiento Preventivo', descripcion: 'Programación de revisiones periódicas.', icono: Icons.verified_user_rounded, colorIcono: Colors.green.shade600, estaSeleccionado: false)),
+                                      ],
                                     ),
-                                  ),
-                                  SizedBox(
-                                    width: esMovil ? constraints.maxWidth : 340,
-                                    child: ModuloCard(
-                                      titulo: 'Mantenimiento Preventivo',
-                                      descripcion: 'Programación de revisiones periódicas.',
-                                      icono: Icons.verified_user_rounded,
-                                      colorIcono: Colors.green.shade600,
-                                      estaSeleccionado: false,
-                                    ),
-                                  ),
-                                ],
-                              ),
                               const SizedBox(height: 40),
                               const Text(
                                 'Resumen Operativo Global',
                                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F2537)),
                               ),
                               const SizedBox(height: 15),
-                              Wrap(
-                                spacing: 15,
-                                runSpacing: 15,
-                                children: [
-                                  SizedBox(
-                                    width: esMovil ? (constraints.maxWidth - 48) / 2 : 180, 
-                                    child: ResumenItem(
-                                      cantidad: _pendientes.toString(),
-                                      etiqueta: 'Pendientes',
-                                      icono: Icons.pending_actions_rounded,
-                                      colorIcono: Colors.orange,
+                              esMovil
+                                  ? Wrap(
+                                      spacing: 15,
+                                      runSpacing: 15,
+                                      children: [
+                                        SizedBox(width: (constraints.maxWidth - 48) / 2, child: ResumenItem(cantidad: _pendientes.toString(), etiqueta: 'Pendientes', icono: Icons.pending_actions_rounded, colorIcono: Colors.orange)),
+                                        SizedBox(width: (constraints.maxWidth - 48) / 2, child: ResumenItem(cantidad: _enProceso.toString(), etiqueta: 'En Proceso', icono: Icons.loop_rounded, colorIcono: Colors.blue)),
+                                        SizedBox(width: (constraints.maxWidth - 48) / 2, child: ResumenItem(cantidad: _resueltos.toString(), etiqueta: 'Resueltos', icono: Icons.check_circle_outline_rounded, colorIcono: Colors.green)),
+                                      ],
+                                    )
+                                  : Row(
+                                      children: [
+                                        Expanded(child: ResumenItem(cantidad: _pendientes.toString(), etiqueta: 'Requerimientos Pendientes', icono: Icons.pending_actions_rounded, colorIcono: Colors.orange)),
+                                        const SizedBox(width: 20),
+                                        Expanded(child: ResumenItem(cantidad: _enProceso.toString(), etiqueta: 'En Proceso de Atención', icono: Icons.loop_rounded, colorIcono: Colors.blue)),
+                                        const SizedBox(width: 20),
+                                        Expanded(child: ResumenItem(cantidad: _resueltos.toString(), etiqueta: 'Tickets Resueltos', icono: Icons.check_circle_outline_rounded, colorIcono: Colors.green)),
+                                      ],
                                     ),
-                                  ),
-                                  SizedBox(
-                                    width: esMovil ? (constraints.maxWidth - 48) / 2 : 180,
-                                    child: ResumenItem(
-                                      cantidad: _enProceso.toString(),
-                                      etiqueta: 'En Proceso',
-                                      icono: Icons.loop_rounded,
-                                      colorIcono: Colors.blue,
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    width: esMovil ? (constraints.maxWidth - 48) / 2 : 180,
-                                    child: ResumenItem(
-                                      cantidad: _resueltos.toString(),
-                                      etiqueta: 'Resueltos',
-                                      icono: Icons.check_circle_outline_rounded,
-                                      colorIcono: Colors.green,
-                                    ),
-                                  ),
-                                ],
-                              ),
                             ],
                             if (_seccionActiva == 1)
                               _todosLosTickets.isEmpty
