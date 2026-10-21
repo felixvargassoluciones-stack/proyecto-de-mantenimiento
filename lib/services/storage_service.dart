@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class StorageService {
   final SupabaseClient _supabase = Supabase.instance.client;
   final String _bucketName = 'evidencias';
+
   // Sube una imagen en bytes a Supabase Storage y retorna su URL pública limpia
   Future<String?> subirEvidencia({
     required Uint8List archivoBytes,
@@ -13,8 +14,8 @@ class StorageService {
       final nombreLimpio = nombreArchivo.replaceAll(' ', '_');
       final String rutaUnica = '${DateTime.now().millisecondsSinceEpoch}_$nombreLimpio';
 
-      // Subida directa de bytes al bucket público
-      await _supabase.storage.from(_bucketName).upload(
+      // CAMBIO CLAVE: Se usa uploadBinary para compatibilidad nativa en Flutter Web
+      await _supabase.storage.from(_bucketName).uploadBinary(
             rutaUnica,
             archivoBytes,
             fileOptions: const FileOptions(
@@ -23,6 +24,7 @@ class StorageService {
               contentType: 'image/jpeg',
             ),
           );
+
       // Extracción a String de forma segura y compatible con cualquier versión del SDK
       final resultadoUrl = _supabase.storage.from(_bucketName).getPublicUrl(rutaUnica);
       
