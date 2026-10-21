@@ -58,21 +58,26 @@ class DatabaseService {
     }
   }
 
-  // Pre-registrar un nuevo cliente desde el panel de administración
+   // Pre-registrar un nuevo cliente desde el panel de administración de forma correcta
   Future<void> registrarCliente({
     required String nombre,
     required String email,
   }) async {
     try {
-      await _supabase.from('perfiles').insert({
-        'nombre': nombre,
-        'email': email.trim().toLowerCase(),
-        'rol': 'cliente',
-      });
+      // MODIFICADO: Registra al usuario en el motor de Autenticación para generar su ID real
+      // Se le asigna una contraseña temporal por defecto (ej. 'Obra2026*') para que pueda loguearse
+      await _supabase.auth.signUp(
+        email: email.trim().toLowerCase(),
+        password: 'Obra2026*', 
+        data: {
+          'nombre': nombre, // Tu Trigger handle_new_user() tomará este nombre automáticamente
+        },
+      );
     } catch (e) {
-      throw Exception('Error al registrar el cliente en la base de datos: $e');
+      throw Exception('Error al registrar el cliente en el sistema: $e');
     }
   }
+
 
   // Actualizar el rol de un cliente (Aprobación rápida del Administrador)
   Future<void> actualizarRolCliente({

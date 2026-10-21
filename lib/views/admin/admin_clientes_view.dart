@@ -158,11 +158,16 @@ class _AdminClientesViewState extends State<AdminClientesView> {
         email: _emailController.text.trim(),
       );
       
-      if (mounted) {
+            if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cliente registrado con éxito'), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text('Cliente registrado con éxito. Contraseña provisional: Obra2026*'), 
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 5),
+          ),
         );
       }
+
       _cargarClientes();
     } catch (e) {
       if (mounted) {
