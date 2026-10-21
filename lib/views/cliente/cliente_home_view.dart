@@ -6,7 +6,6 @@ import '../auth/login_view.dart';
 import 'crear_ticket_view.dart';
 import 'dart:ui';
 
-
 class ClienteHomeView extends StatefulWidget {
   const ClienteHomeView({super.key});
 
@@ -39,7 +38,6 @@ class _ClienteHomeViewState extends State<ClienteHomeView> {
       default: return Colors.orange;
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -121,7 +119,6 @@ class _ClienteHomeViewState extends State<ClienteHomeView> {
                                     const SizedBox(height: 4),
                                     Text(ticket.descripcion, style: TextStyle(color: Colors.grey.shade600)),
                                     const SizedBox(height: 8),
-                                    // NUEVO: Verificador dinámico de lote de imágenes para el Cliente
                                     if (ticket.urlsFotos != null && ticket.urlsFotos!.isNotEmpty)
                                       TextButton.icon(
                                         icon: const Icon(Icons.image_search_rounded, size: 18),
@@ -136,7 +133,6 @@ class _ClienteHomeViewState extends State<ClienteHomeView> {
                                 ),
                               ),
                               const SizedBox(width: 20),
-                              // NUEVO: Tag visual de estado idéntico al del administrador
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
@@ -171,9 +167,7 @@ class _ClienteHomeViewState extends State<ClienteHomeView> {
       ),
     );
   }
-
-  // Modulo de visualización en carrusel optimizado para el Cliente
-   void _mostrarDialogoEvidencias(RequerimientoModel ticket) {
+  void _mostrarDialogoEvidencias(RequerimientoModel ticket) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -182,7 +176,6 @@ class _ClienteHomeViewState extends State<ClienteHomeView> {
           width: 500,
           height: 350,
           child: ScrollConfiguration(
-            // CAMBIO CLAVE: Soporte nativo para arrastrar con mouse en Flutter Web
             behavior: ScrollConfiguration.of(context).copyWith(
               dragDevices: {
                 PointerDeviceKind.mouse,
@@ -196,18 +189,60 @@ class _ClienteHomeViewState extends State<ClienteHomeView> {
                 scrollDirection: Axis.horizontal,
                 itemCount: ticket.urlsFotos!.length,
                 itemBuilder: (context, idx) {
-                  return Container(
-                    width: 380,
-                    margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        ticket.urlsFotos![idx],
-                        fit: BoxFit.cover,
+                  final urlImagen = ticket.urlsFotos![idx];
+                  return GestureDetector(
+                    // MODIFICADO: Añadido soporte táctil y clic para abrir pantalla completa en el Cliente con súper zoom
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (_) => Dialog(
+                          backgroundColor: Colors.black.withValues(alpha: 0.9),
+                          insetPadding: const EdgeInsets.all(10),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              SizedBox(
+                                width: double.infinity,
+                                height: double.infinity,
+                                child: InteractiveViewer(
+                                  clipBehavior: Clip.none,
+                                  minScale: 1.0,
+                                  maxScale: 5.0,
+                                  child: Image.network(
+                                    urlImagen,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                top: 20,
+                                right: 20,
+                                child: CircleAvatar(
+                                  backgroundColor: Colors.black54,
+                                  child: IconButton(
+                                    icon: const Icon(Icons.close_rounded, color: Colors.white),
+                                    onPressed: () => Navigator.pop(context),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 380,
+                      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          urlImagen,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                   );
@@ -225,5 +260,4 @@ class _ClienteHomeViewState extends State<ClienteHomeView> {
       ),
     );
   }
-
 }

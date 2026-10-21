@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/requerimiento_model.dart';
 import '../../services/database_service.dart';
 import '../../widgets/modulo_card.dart';
@@ -28,8 +29,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
   void initState() {
     super.initState();
     _cargarDatosGlobales();
-  }
-  Future<void> _cargarDatosGlobales() async {
+  }  Future<void> _cargarDatosGlobales() async {
     setState(() => _cargando = true);
     try {
       final todos = await _databaseService.obtenerTodosLosRequerimientos();
@@ -262,18 +262,47 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                       ],
                                     ),
                             ],
+                            // Vista 1: Control de Registros Operativos (MODIFICADO A STREAMBUILDER EN VIVO)
                             if (_seccionActiva == 1)
-                              _todosLosTickets.isEmpty
-                                ? const Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 40),
-                                    child: Center(child: Text('No hay requerimientos registrados en el sistema.')),
-                                  )
-                                : ListView.builder(
+                              StreamBuilder<List<Map<String, dynamic>>>(
+                                stream: Supabase.instance.client.from('requerimientos').stream(primaryKey: ['id']).order('creado_el', ascending: false),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState == ConnectionState.waiting && _todosLosTickets.isEmpty) {
+                                    return const Center(child: CircularProgressIndicator());
+                                  }
+                                  
+                                  // Al llegar un cambio por el socket Realtime, cruzamos la información en memoria
+                                  final lasFilas = snapshot.data ?? [];
+                                  List<RequerimientoModel> ticketsEnVivo = lasFilas.map((json) {
+                                    final modeloBase = RequerimientoModel.fromJson(json);
+                                    // Mantiene los nombres precargados cruzados por el Join para evitar textos en blanco
+                                    final cacheIndex = _todosLosTickets.indexWhere((t) => t.id == modeloBase.id);
+                                    return RequerimientoModel(
+                                      id: modeloBase.id,
+                                      creadoEl: modeloBase.creadoEl,
+                                      clienteId: modeloBase.clienteId,
+                                      titulo: modeloBase.titulo,
+                                      descripcion: modeloBase.descripcion,
+                                      urlsFotos: modeloBase.urlsFotos,
+                                      estado: modeloBase.estado,
+                                      clienteNombre: cacheIndex != -1 ? _todosLosTickets[cacheIndex].clienteNombre : 'Usuario de Obra',
+                                      clienteEmail: cacheIndex != -1 ? _todosLosTickets[cacheIndex].clienteEmail : 'Sincronizando...',
+                                    );
+                                  }).toList();
+
+                                  if (ticketsEnVivo.isEmpty) {
+                                    return const Padding(
+                                      padding: EdgeInsets.symmetric(vertical: 40),
+                                      child: Center(child: Text('No hay requerimientos registrados en el sistema.')),
+                                    );
+                                  }
+
+                                  return ListView.builder(
                                     shrinkWrap: true,
                                     physics: const NeverScrollableScrollPhysics(), 
-                                    itemCount: _todosLosTickets.length,
+                                    itemCount: ticketsEnVivo.length,
                                     itemBuilder: (context, index) {
-                                      final ticket = _todosLosTickets[index];
+                                      final ticket = ticketsEnVivo[index];
                                       return Card(
                                         margin: const EdgeInsets.symmetric(vertical: 8),
                                         child: Padding(
@@ -299,7 +328,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                                       children: [
                                                         Icon(Icons.person_outline_rounded, size: 13, color: Colors.grey.shade500),
                                                         const SizedBox(width: 4),
-                                                        Expanded(child: Text('Cliente: ${ticket.clienteNombre ?? "Cargando..."}', style: const TextStyle(fontSize: 12, color: Color(0xFF0F2537), fontWeight: FontWeight.bold))),
+                                                        Expanded(child: Text('Cliente: ${ticket.clienteNombre}', style: const TextStyle(fontSize: 12, color: Color(0xFF0F2537), fontWeight: FontWeight.bold))),
                                                       ],
                                                     ),
                                                     const SizedBox(height: 2),
@@ -307,7 +336,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                                       children: [
                                                         Icon(Icons.alternate_email_rounded, size: 12, color: Colors.grey.shade500),
                                                         const SizedBox(width: 4),
-                                                        Expanded(child: Text('Correo: ${ticket.clienteEmail ?? "Sin correo"}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600))),
+                                                        Expanded(child: Text('Correo: ${ticket.clienteEmail}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600))),
                                                       ],
                                                     ),
                                                     const SizedBox(height: 2),
@@ -385,7 +414,9 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                         ),
                                       );
                                     },
-                                  ),
+                                  );
+                                },
+                              ),
                           ],
                         ),
                 ),
@@ -397,7 +428,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     );
   }
 
-    void _mostrarDialogoFotos(RequerimientoModel ticket) {
+  void _mostrarDialogoFotos(RequerimientoModel ticket) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -421,31 +452,28 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                 itemBuilder: (context, idx) {
                   final urlImagen = ticket.urlsFotos![idx];
                   return GestureDetector(
-                    // NUEVO: Al hacer clic a la imagen, se abre en pantalla completa con super-zoom
                     onTap: () {
                       showDialog(
                         context: context,
                         builder: (_) => Dialog(
                           backgroundColor: Colors.black.withValues(alpha: 0.9),
-                          insetPadding: const EdgeInsets.all(10), // Da un margen mínimo en el celular
+                          insetPadding: const EdgeInsets.all(10),
                           child: Stack(
                             alignment: Alignment.center,
                             children: [
-                              // Contenedor interactivo para Pellizcar/Hacer Zoom y arrastrar libremente
                               SizedBox(
                                 width: double.infinity,
                                 height: double.infinity,
                                 child: InteractiveViewer(
                                   clipBehavior: Clip.none,
                                   minScale: 1.0,
-                                  maxScale: 5.0, // Permite ampliar la evidencia hasta 5 veces
+                                  maxScale: 5.0,
                                   child: Image.network(
                                     urlImagen,
-                                    fit: BoxFit.contain, // Mantiene las proporciones reales de la foto
+                                    fit: BoxFit.contain,
                                   ),
                                 ),
                               ),
-                              // Botón flotante superior para cerrar la pantalla completa de forma rápida
                               Positioned(
                                 top: 20,
                                 right: 20,
@@ -492,5 +520,4 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
       ),
     );
   }
-
 }
