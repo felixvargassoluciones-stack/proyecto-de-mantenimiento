@@ -61,23 +61,41 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
       setState(() => _cargando = false);
     }
   }
-  // Modifica el estado en Supabase y refresca la interfaz automáticamente
-   void _cambiarEstatusTicket(int ticketId, String nuevoEstado) async {
-    try {
-      await _databaseService.actualizarEstadoRequerimiento(ticketId, nuevoEstado);
-      
-      if (!mounted) return;
-      _cargarDatosGlobales(); 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Estado actualizado con éxito'), backgroundColor: Colors.green),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al actualizar el estado'), backgroundColor: Colors.redAccent),
-      );
-    }
+  void _cambiarEstatusTicket(int ticketId, String nuevoEstado) async {
+  try {
+    await _databaseService.actualizarEstadoRequerimiento(ticketId, nuevoEstado);
+    
+    if (!mounted) return;
+    
+    // Actualización local limpia en memoria sin activar la pantalla de carga global
+    setState(() {
+      final index = _todosLosTickets.indexWhere((t) => t.id == ticketId);
+      if (index != -1) {
+        // Creamos una copia del ticket con el nuevo estado aplicado
+        final ticketActualizado = RequerimientoModel(
+          id: _todosLosTickets[index].id,
+          creadoEl: _todosLosTickets[index].creadoEl,
+          clienteId: _todosLosTickets[index].clienteId,
+          titulo: _todosLosTickets[index].titulo,
+          descripcion: _todosLosTickets[index].descripcion,
+          urlsFotos: _todosLosTickets[index].urlsFotos,
+          estado: nuevoEstado,
+        );
+        _todosLosTickets[index] = ticketActualizado;
+      }
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Estado actualizado con éxito'), backgroundColor: Colors.green),
+    );
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Error al actualizar el estado'), backgroundColor: Colors.redAccent),
+    );
   }
+}
+
 
   Color _obtenerColorEstado(String estado) {
     switch (estado) {
@@ -225,23 +243,51 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                                   const SizedBox(height: 4),
                                                   Text(ticket.descripcion, style: TextStyle(color: Colors.grey.shade600)),
                                                   const SizedBox(height: 8),
-                                                  if (ticket.urlFoto != null)
-                                                    TextButton.icon(
-                                                      icon: const Icon(Icons.image_search_rounded, size: 18),
-                                                      label: const Text('Ver Evidencia Fotográfica'),
-                                                      onPressed: () {
-                                                        showDialog(
-                                                          context: context,
-                                                          builder: (_) => AlertDialog(
-                                                            title: Text(ticket.titulo),
-                                                            content: Image.network(ticket.urlFoto!, fit: BoxFit.contain),
-                                                            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cerrar'))],
-                                                          ),
-                                                        );
-                                                      },
-                                                    )
-                                                  else
-                                                    Text('Sin evidencia adjunta', style: TextStyle(fontSize: 11, color: Colors.grey.shade400, fontStyle: FontStyle.italic)),
+                                                 if (ticket.urlsFotos != null && ticket.urlsFotos!.isNotEmpty)
+  TextButton.icon(
+    icon: const Icon(Icons.image_search_rounded, size: 18),
+    label: Text('Ver Evidencias Fotográficas (${ticket.urlsFotos!.length})'),
+    onPressed: () {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: Text(ticket.titulo),
+          content: SizedBox(
+            width: 500,
+            height: 300,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: ticket.urlsFotos!.length,
+              itemBuilder: (context, idx) {
+                return Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      ticket.urlsFotos![idx],
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cerrar'),
+            )
+          ],
+        ),
+      );
+    },
+  )
+else
+  Text(
+    'Sin evidencia adjunta',
+    style: TextStyle(fontSize: 11, color: Colors.grey.shade400, fontStyle: FontStyle.italic),
+  ),
+
                                                 ],
                                               ),
                                             ),

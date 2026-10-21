@@ -24,29 +24,29 @@ class _CrearTicketViewState extends State<CrearTicketView> {
   final _picker = ImagePicker();
   
   bool _guardando = false;
-  Uint8List? _imagenBytes;
-  String? _nombreImagen;
+  // Listas preparadas para acumular múltiples evidencias fotográficas en lote
+  final List<Uint8List> _listaImagenesBytes = [];
+  final List<String> _listaNombresImagenes = [];
 
-  // Función para tomar foto con la cámara del dispositivo
+  // Función para tomar foto con la cámara y apilar los bytes en memoria
   Future<void> _capturarFoto() async {
     try {
       final XFile? foto = await _picker.pickImage(
         source: ImageSource.camera,
-        imageQuality: 75, // Reduce peso optimizando la subida a Supabase
+        imageQuality: 75,
       );
 
       if (foto != null) {
         final bytes = await foto.readAsBytes();
         setState(() {
-          _imagenBytes = bytes;
-          _nombreImagen = foto.name;
+          _listaImagenesBytes.add(bytes);
+          _listaNombresImagenes.add(foto.name);
         });
       }
     } catch (e) {
       _mostrarMensaje('No se pudo acceder a la cámara.', Colors.redAccent);
     }
   }
-
   void _enviarReporte() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -60,25 +60,25 @@ class _CrearTicketViewState extends State<CrearTicketView> {
         return;
       }
 
-      String? urlFotoPublica;
+      List<String>? urlsFotosPublicas;
 
-      // 1. Si el cliente capturó una foto, subirla primero al Storage
-      if (_imagenBytes != null && _nombreImagen != null) {
-        urlFotoPublica = await _storageService.subirEvidencia(
-          archivoBytes: _imagenBytes!,
-          nombreArchivo: _nombreImagen!,
+      // 1. Si hay fotos acumuladas, subirlas en paralelo al bucket de Supabase
+      if (_listaImagenesBytes.isNotEmpty) {
+        urlsFotosPublicas = await _storageService.subirMultiplesEvidencias(
+          listaArchivosBytes: _listaImagenesBytes,
+          listaNombresArchivos: _listaNombresImagenes,
         );
       }
 
-      // 2. Crear el modelo con la URL de la foto de Supabase Storage
+      // 2. Construcción del modelo con el arreglo completo de URLs
       final nuevoTicket = RequerimientoModel(
         clienteId: userId,
         titulo: _tituloController.text.trim(),
         descripcion: _descripcionController.text.trim(),
-        urlFoto: urlFotoPublica, // URL limpia del bucket público
+        urlsFotos: urlsFotosPublicas != null && urlsFotosPublicas.isNotEmpty ? urlsFotosPublicas : null,
       );
 
-      // 3. Guardar registro en PostgreSQL
+      // 3. Persistencia de datos en la tabla requerimientos de PostgreSQL
       await _databaseService.crearRequerimiento(nuevoTicket);
 
       if (!mounted) return;
@@ -124,7 +124,7 @@ class _CrearTicketViewState extends State<CrearTicketView> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
+                   color: Colors.black.withValues(alpha: 0.03),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -169,37 +169,41 @@ class _CrearTicketViewState extends State<CrearTicketView> {
                       validator: (v) => v == null || v.isEmpty ? 'Por favor ingresa una descripción' : null,
                     ),
                     const SizedBox(height: 24),
-                    // Contenedor multimedia interactivo
+                    
+                    // Zona de captura multimedia interactiva
                     GestureDetector(
                       onTap: _guardando ? null : _capturarFoto,
                       child: Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: _imagenBytes != null ? Colors.blue.withValues(alpha: 0.05) : Colors.grey.shade50,
+                          // Línea original: color: _listaImagenesBytes.isNotEmpty ? Colors.blue.withOpacity(0.05) : Colors.grey.shade50,
+                          color: _listaImagenesBytes.isNotEmpty ? Colors.blue.withValues(alpha: 0.05) : Colors.grey.shade50,
+
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: _imagenBytes != null ? Colors.blue : Colors.grey.shade300,
-                            style: BorderStyle.solid,
+                            color: _listaImagenesBytes.isNotEmpty ? Colors.blue : Colors.grey.shade300,
                           ),
                         ),
                         child: Column(
                           children: [
                             Icon(
-                              _imagenBytes != null ? Icons.verified_rounded : Icons.add_a_photo_rounded, 
+                              _listaImagenesBytes.isNotEmpty ? Icons.add_a_photo_rounded : Icons.camera_alt_rounded, 
                               size: 40, 
-                              color: _imagenBytes != null ? Colors.blue : Colors.grey.shade400
+                              color: _listaImagenesBytes.isNotEmpty ? Colors.blue : Colors.grey.shade400
                             ),
                             const SizedBox(height: 10),
                             Text(
-                              _imagenBytes != null ? '¡Foto adjuntada con éxito!' : 'Evidencia Fotográfica',
+                              _listaImagenesBytes.isNotEmpty 
+                                  ? '¡Fotos adjuntadas: ${_listaImagenesBytes.length}!' 
+                                  : 'Evidencia Fotográfica',
                               style: TextStyle(
                                 fontSize: 14, 
                                 fontWeight: FontWeight.w600, 
-                                color: _imagenBytes != null ? Colors.blue : Colors.grey.shade700
+                                color: _listaImagenesBytes.isNotEmpty ? Colors.blue : Colors.grey.shade700
                               ),
                             ),
                             Text(
-                              _imagenBytes != null ? 'Haz clic de nuevo si deseas cambiar la captura' : 'Haz clic aquí para activar la cámara',
+                              'Haz clic aquí para añadir otra foto de la avería',
                               style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
                               textAlign: TextAlign.center,
                             ),
@@ -207,6 +211,38 @@ class _CrearTicketViewState extends State<CrearTicketView> {
                         ),
                       ),
                     ),
+                    
+                    // Carrusel dinámico horizontal de previsualización de imágenes fijadas
+                    if (_listaImagenesBytes.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Previsualización de evidencias:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
+                          TextButton(
+                            onPressed: () => setState(() { _listaImagenesBytes.clear(); _listaNombresImagenes.clear(); }),
+                            child: const Text('Limpiar todas', style: TextStyle(color: Colors.redAccent, fontSize: 12)),
+                          )
+                        ],
+                      ),
+                      SizedBox(
+                        height: 80,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _listaImagenesBytes.length,
+                          itemBuilder: (context, idx) {
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 10),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.memory(_listaImagenesBytes[idx], width: 80, height: 80, fit: BoxFit.cover),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: 30),
                     ElevatedButton(
                       onPressed: _guardando ? null : _enviarReporte,
