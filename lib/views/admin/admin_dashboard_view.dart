@@ -101,6 +101,17 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     }
   }
 
+  // NUEVO: Formateador de fechas para el control de obra (DD/MM/AAAA)
+  String _formatearFecha(DateTime? fecha) {
+    if (fecha == null) return '--/--/----';
+    final dia = fecha.day.toString().padLeft(2, '0');
+    final mes = fecha.month.toString().padLeft(2, '0');
+    final anio = fecha.year;
+    final hora = fecha.hour.toString().padLeft(2, '0');
+    final minuto = fecha.minute.toString().padLeft(2, '0');
+    return '$dia/$mes/$anio $hora:$minuto';
+  }
+
   String _obtenerTituloEncabezado() {
     switch (_seccionActiva) {
       case 1: return 'Listado de Requerimientos';
@@ -192,12 +203,12 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                             
                             if (_seccionActiva == 0) ...[
                               esMovil
-                                  ? Wrap(
-                                      spacing: 15,
-                                      runSpacing: 15,
+                                  ? Column( // CORREGIDO: Bloque vertical rígido para anular pantallas grises en celular
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
                                       children: [
-                                        SizedBox(width: constraints.maxWidth, child: ModuloCard(titulo: 'Mantenimiento Correctivo', descripcion: 'Atención inmediata a fallas críticas reportadas.', icono: Icons.build_circle_rounded, colorIcono: Colors.amber.shade700, estaSeleccionado: true, onTap: () => setState(() => _seccionActiva = 1))),
-                                        SizedBox(width: constraints.maxWidth, child: ModuloCard(titulo: 'Mantenimiento Preventivo', descripcion: 'Programación de revisiones periódicas.', icono: Icons.verified_user_rounded, colorIcono: Colors.green.shade600, estaSeleccionado: false)),
+                                        ModuloCard(titulo: 'Mantenimiento Correctivo', descripcion: 'Atención inmediata a fallas críticas reportadas.', icono: Icons.build_circle_rounded, colorIcono: Colors.amber.shade700, estaSeleccionado: true, onTap: () => setState(() => _seccionActiva = 1)),
+                                        const SizedBox(height: 15),
+                                        ModuloCard(titulo: 'Mantenimiento Preventivo', descripcion: 'Programación de revisiones periódicas.', icono: Icons.verified_user_rounded, colorIcono: Colors.green.shade600, estaSeleccionado: false),
                                       ],
                                     )
                                   : Row(
@@ -214,13 +225,13 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                               ),
                               const SizedBox(height: 15),
                               esMovil
-                                  ? Wrap(
-                                      spacing: 15,
-                                      runSpacing: 15,
+                                  ? Column( // CORREGIDO: Listado de métricas fluidas para dispositivos móviles angostos
                                       children: [
-                                        SizedBox(width: (constraints.maxWidth - 48) / 2, child: ResumenItem(cantidad: _pendientes.toString(), etiqueta: 'Pendientes', icono: Icons.pending_actions_rounded, colorIcono: Colors.orange)),
-                                        SizedBox(width: (constraints.maxWidth - 48) / 2, child: ResumenItem(cantidad: _enProceso.toString(), etiqueta: 'En Proceso', icono: Icons.loop_rounded, colorIcono: Colors.blue)),
-                                        SizedBox(width: (constraints.maxWidth - 48) / 2, child: ResumenItem(cantidad: _resueltos.toString(), etiqueta: 'Resueltos', icono: Icons.check_circle_outline_rounded, colorIcono: Colors.green)),
+                                        ResumenItem(cantidad: _pendientes.toString(), etiqueta: 'Pendientes', icono: Icons.pending_actions_rounded, colorIcono: Colors.orange),
+                                        const SizedBox(height: 12),
+                                        ResumenItem(cantidad: _enProceso.toString(), etiqueta: 'En Proceso', icono: Icons.loop_rounded, colorIcono: Colors.blue),
+                                        const SizedBox(height: 12),
+                                        ResumenItem(cantidad: _resueltos.toString(), etiqueta: 'Resueltos', icono: Icons.check_circle_outline_rounded, colorIcono: Colors.green),
                                       ],
                                     )
                                   : Row(
@@ -265,8 +276,27 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                                   crossAxisAlignment: CrossAxisAlignment.start,
                                                   children: [
                                                     Text(ticket.titulo, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                                    const SizedBox(height: 4),
-                                                    Text(ticket.descripcion, style: TextStyle(color: Colors.grey.shade600)),
+                                                    const SizedBox(height: 6),
+                                                    
+                                                    // NUEVO: Bloque informativo de control de obra (Remitente y Fecha)
+                                                    Row(
+                                                      children: [
+                                                        Icon(Icons.person_outline_rounded, size: 13, color: Colors.grey.shade500),
+                                                        const SizedBox(width: 4),
+                                                        Expanded(child: Text('ID Cliente: ${ticket.clienteId}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis)),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Row(
+                                                      children: [
+                                                        Icon(Icons.calendar_today_outlined, size: 12, color: Colors.grey.shade500),
+                                                        const SizedBox(width: 4),
+                                                        Text('Reportado el: ${_formatearFecha(ticket.creadoEl)}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    
+                                                    Text(ticket.descripcion, style: TextStyle(color: Colors.grey.shade700)),
                                                     const SizedBox(height: 8),
                                                     if (ticket.urlsFotos != null && ticket.urlsFotos!.isNotEmpty)
                                                       TextButton.icon(
@@ -348,11 +378,17 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.grey.shade300),
                     ),
+                    // NUEVO: InteractiveViewer inyectado para habilitar zoom nativo (Mouse/Táctil)
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        ticket.urlsFotos![idx],
-                        fit: BoxFit.cover,
+                      child: InteractiveViewer(
+                        clipBehavior: Clip.none,
+                        minScale: 1.0,
+                        maxScale: 4.0, 
+                        child: Image.network(
+                          ticket.urlsFotos![idx],
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                   );
