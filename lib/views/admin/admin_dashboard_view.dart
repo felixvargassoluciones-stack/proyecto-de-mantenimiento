@@ -1,11 +1,11 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../models/requerimiento_model.dart';
 import '../../services/database_service.dart';
 import '../../widgets/modulo_card.dart';
 import '../../widgets/resumen_item.dart';
 import 'admin_sidebar.dart';
-import 'admin_clientes_view.dart'; // Importación de la nueva vista de clientes
-import 'dart:ui';
+import 'admin_clientes_view.dart';
 
 class AdminDashboardView extends StatefulWidget {
   const AdminDashboardView({super.key});
@@ -15,10 +15,9 @@ class AdminDashboardView extends StatefulWidget {
 }
 
 class _AdminDashboardViewState extends State<AdminDashboardView> {
-  int _seccionActiva = 0; // 0: Resumen Global, 1: Lista de Requerimientos, 2: Gestión de Clientes
+  int _seccionActiva = 0; 
   final _databaseService = DatabaseService();
   
-  // Variables para métricas
   int _pendientes = 0;
   int _enProceso = 0;
   int _resueltos = 0;
@@ -31,7 +30,6 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     _cargarDatosGlobales();
   }
 
-  // Consulta la base de datos para actualizar las métricas y la lista operativa
   Future<void> _cargarDatosGlobales() async {
     setState(() => _cargando = true);
     try {
@@ -63,40 +61,37 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     }
   }
   void _cambiarEstatusTicket(int ticketId, String nuevoEstado) async {
-  try {
-    await _databaseService.actualizarEstadoRequerimiento(ticketId, nuevoEstado);
-    
-    if (!mounted) return;
-    
-    // Actualización local limpia en memoria sin activar la pantalla de carga global
-    setState(() {
-      final index = _todosLosTickets.indexWhere((t) => t.id == ticketId);
-      if (index != -1) {
-        // Creamos una copia del ticket con el nuevo estado aplicado
-        final ticketActualizado = RequerimientoModel(
-          id: _todosLosTickets[index].id,
-          creadoEl: _todosLosTickets[index].creadoEl,
-          clienteId: _todosLosTickets[index].clienteId,
-          titulo: _todosLosTickets[index].titulo,
-          descripcion: _todosLosTickets[index].descripcion,
-          urlsFotos: _todosLosTickets[index].urlsFotos,
-          estado: nuevoEstado,
-        );
-        _todosLosTickets[index] = ticketActualizado;
-      }
-    });
+    try {
+      await _databaseService.actualizarEstadoRequerimiento(ticketId, nuevoEstado);
+      
+      if (!mounted) return;
+      
+      setState(() {
+        final index = _todosLosTickets.indexWhere((t) => t.id == ticketId);
+        if (index != -1) {
+          final ticketActualizado = RequerimientoModel(
+            id: _todosLosTickets[index].id,
+            creadoEl: _todosLosTickets[index].creadoEl,
+            clienteId: _todosLosTickets[index].clienteId,
+            titulo: _todosLosTickets[index].titulo,
+            descripcion: _todosLosTickets[index].descripcion,
+            urlsFotos: _todosLosTickets[index].urlsFotos,
+            estado: nuevoEstado,
+          );
+          _todosLosTickets[index] = ticketActualizado;
+        }
+      });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Estado actualizado con éxito'), backgroundColor: Colors.green),
-    );
-  } catch (e) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Error al actualizar el estado'), backgroundColor: Colors.redAccent),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Estado actualizado con éxito'), backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al actualizar el estado'), backgroundColor: Colors.redAccent),
+      );
+    }
   }
-}
-
 
   Color _obtenerColorEstado(String estado) {
     switch (estado) {
@@ -116,232 +111,286 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
 
   String _obtenerSubtituloEncabezado() {
     switch (_seccionActiva) {
-      case 1: return 'Gestión directa, visualización de evidencias y cambio de estados';
-      case 2: return 'Pre-registro de clientes autorizados en el sistema y control de acceso';
-      default: return 'Control y asignación de requerimientos de mantenimiento del sistema';
+      case 1: return 'Gestión directa y visualización de evidencias';
+      case 2: return 'Control de acceso de clientes';
+      default: return 'Control y asignación de requerimientos';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Row(
-        children: [
-          AdminSidebar(
-            indexSeleccionado: _seccionActiva,
-            onIndexChanged: (nuevoIndex) {
-              setState(() => _seccionActiva = nuevoIndex);
-            },
-          ),
-          Expanded(
-            child: Container(
-              color: const Color(0xFFF4F6F9),
-              padding: const EdgeInsets.all(30),
-              child: _seccionActiva == 2 
-                ? const AdminClientesView() // Inyección limpia del módulo independiente
-                : _cargando 
-                  ? const Center(child: CircularProgressIndicator())
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Encabezado dinámico optimizado
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool esMovil = constraints.maxWidth < 800;
+
+        Widget sidebarWidget = AdminSidebar(
+          indexSeleccionado: _seccionActiva,
+          onIndexChanged: (nuevoIndex) {
+            setState(() => _seccionActiva = nuevoIndex);
+            if (esMovil) {
+              Navigator.pop(context); 
+            }
+          },
+        );
+
+        return Scaffold(
+          appBar: esMovil
+              ? AppBar(
+                  backgroundColor: const Color(0xFF0F2537),
+                  title: Text(_obtenerTituloEncabezado(), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  iconTheme: const IconThemeData(color: Colors.white),
+                  actions: [
+                    IconButton(
+                      icon: const Icon(Icons.refresh_rounded),
+                      onPressed: _cargarDatosGlobales,
+                    ),
+                  ],
+                )
+              : null,
+          drawer: esMovil ? Drawer(child: sidebarWidget) : null,
+          body: Row(
+            children: [
+              if (!esMovil) sidebarWidget,
+              Expanded(
+                child: Container(
+                  color: const Color(0xFFF4F6F9),
+                  padding: EdgeInsets.all(esMovil ? 16 : 30),
+                  child: _seccionActiva == 2 
+                    ? const AdminClientesView() 
+                    : _cargando 
+                      ? const Center(child: CircularProgressIndicator())
+                      : ListView( 
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _obtenerTituloEncabezado(),
-                                  style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF0F2537)),
-                                ),
-                                const SizedBox(height: 5),
-                                Text(
-                                  _obtenerSubtituloEncabezado(),
-                                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                                ),
-                              ],
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.refresh_rounded, color: Color(0xFF0F2537), size: 28),
-                              onPressed: _cargarDatosGlobales,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 25),
-                        // Vista 1: Resumen Dashboard
-                        if (_seccionActiva == 0) ...[
-                          Row(
-                            children: [
-                              ModuloCard(
-                                titulo: 'Mantenimiento Correctivo',
-                                descripcion: 'Atención inmediata a fallas y reportes críticos enviados por los clientes.',
-                                icono: Icons.build_circle_rounded,
-                                colorIcono: Colors.amber.shade700,
-                                estaSeleccionado: true,
-                                onTap: () => setState(() => _seccionActiva = 1),
+                            if (!esMovil) ...[
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _obtenerTituloEncabezado(),
+                                          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF0F2537)),
+                                        ),
+                                        const SizedBox(height: 5),
+                                        Text(
+                                          _obtenerSubtituloEncabezado(),
+                                          style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.refresh_rounded, color: Color(0xFF0F2537), size: 28),
+                                    onPressed: _cargarDatosGlobales,
+                                  ),
+                                ],
                               ),
-                              ModuloCard(
-                                titulo: 'Mantenimiento Preventivo',
-                                descripcion: 'Programación de revisiones periódicas e inspección de infraestructura.',
-                                icono: Icons.verified_user_rounded,
-                                colorIcono: Colors.green.shade600,
-                                estaSeleccionado: false,
+                              const SizedBox(height: 25),
+                            ],
+                            
+                            if (_seccionActiva == 0) ...[
+                              Wrap( 
+                                spacing: 15,
+                                runSpacing: 15,
+                                children: [
+                                  SizedBox(
+                                    width: esMovil ? constraints.maxWidth : 340,
+                                    child: ModuloCard(
+                                      titulo: 'Mantenimiento Correctivo',
+                                      descripcion: 'Atención inmediata a fallas críticas reportadas.',
+                                      icono: Icons.build_circle_rounded,
+                                      colorIcono: Colors.amber.shade700,
+                                      estaSeleccionado: true,
+                                      onTap: () => setState(() => _seccionActiva = 1),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: esMovil ? constraints.maxWidth : 340,
+                                    child: ModuloCard(
+                                      titulo: 'Mantenimiento Preventivo',
+                                      descripcion: 'Programación de revisiones periódicas.',
+                                      icono: Icons.verified_user_rounded,
+                                      colorIcono: Colors.green.shade600,
+                                      estaSeleccionado: false,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 40),
+                              const Text(
+                                'Resumen Operativo Global',
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F2537)),
+                              ),
+                              const SizedBox(height: 15),
+                              Wrap(
+                                spacing: 15,
+                                runSpacing: 15,
+                                children: [
+                                  SizedBox(
+                                    width: esMovil ? (constraints.maxWidth - 48) / 2 : 180, 
+                                    child: ResumenItem(
+                                      cantidad: _pendientes.toString(),
+                                      etiqueta: 'Pendientes',
+                                      icono: Icons.pending_actions_rounded,
+                                      colorIcono: Colors.orange,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: esMovil ? (constraints.maxWidth - 48) / 2 : 180,
+                                    child: ResumenItem(
+                                      cantidad: _enProceso.toString(),
+                                      etiqueta: 'En Proceso',
+                                      icono: Icons.loop_rounded,
+                                      colorIcono: Colors.blue,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: esMovil ? (constraints.maxWidth - 48) / 2 : 180,
+                                    child: ResumenItem(
+                                      cantidad: _resueltos.toString(),
+                                      etiqueta: 'Resueltos',
+                                      icono: Icons.check_circle_outline_rounded,
+                                      colorIcono: Colors.green,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
-                          ),
-                          const SizedBox(height: 40),
-                          const Text(
-                            'Resumen Operativo Global',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F2537)),
-                          ),
-                          const SizedBox(height: 15),
-                          Row(
-                            children: [
-                              ResumenItem(
-                                cantidad: _pendientes.toString(),
-                                etiqueta: 'Requerimientos Pendientes',
-                                icono: Icons.pending_actions_rounded,
-                                colorIcono: Colors.orange,
-                              ),
-                              ResumenItem(
-                                cantidad: _enProceso.toString(),
-                                etiqueta: 'En Proceso de Atención',
-                                icono: Icons.loop_rounded,
-                                colorIcono: Colors.blue,
-                              ),
-                              ResumenItem(
-                                cantidad: _resueltos.toString(),
-                                etiqueta: 'Tickets Resueltos',
-                                icono: Icons.check_circle_outline_rounded,
-                                colorIcono: Colors.green,
-                              ),
-                            ],
-                          ),
-                        ],
-                        // Vista 2: Control Operativo Detallado de Registros
-                        if (_seccionActiva == 1)
-                          Expanded(
-                            child: _todosLosTickets.isEmpty
-                              ? const Center(child: Text('No hay requerimientos registrados en el sistema.'))
-                              : ListView.builder(
-                                  itemCount: _todosLosTickets.length,
-                                  itemBuilder: (context, index) {
-                                    final ticket = _todosLosTickets[index];
-                                    return Card(
-                                      margin: const EdgeInsets.symmetric(vertical: 8),
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(16),
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.assignment_rounded, color: _obtenerColorEstado(ticket.estado), size: 36),
-                                            const SizedBox(width: 15),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
+                            if (_seccionActiva == 1)
+                              _todosLosTickets.isEmpty
+                                ? const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 40),
+                                    child: Center(child: Text('No hay requerimientos registrados en el sistema.')),
+                                  )
+                                : ListView.builder(
+                                    shrinkWrap: true,
+                                    physics: const NeverScrollableScrollPhysics(), 
+                                    itemCount: _todosLosTickets.length,
+                                    itemBuilder: (context, index) {
+                                      final ticket = _todosLosTickets[index];
+                                      return Card(
+                                        margin: const EdgeInsets.symmetric(vertical: 8),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(16),
+                                          child: Flex( 
+                                            direction: esMovil ? Axis.vertical : Axis.horizontal,
+                                            crossAxisAlignment: esMovil ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+                                            children: [
+                                              Row(
                                                 children: [
-                                                  Text(ticket.titulo, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                                  const SizedBox(height: 4),
-                                                  Text(ticket.descripcion, style: TextStyle(color: Colors.grey.shade600)),
-                                                  const SizedBox(height: 8),
-                                                if (ticket.urlsFotos != null && ticket.urlsFotos!.isNotEmpty)
-  TextButton.icon(
-    icon: const Icon(Icons.image_search_rounded, size: 18),
-    label: Text('Ver Evidencias Fotográficas (${ticket.urlsFotos!.length})'),
-    onPressed: () {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: Text(ticket.titulo),
-          content: SizedBox(
-  width: 500,
-  height: 350,
-  child: ScrollConfiguration(
-    // CAMBIO CLAVE: Permite arrastrar el carrusel con el mouse en la PC
-    behavior: ScrollConfiguration.of(context).copyWith(
-      dragDevices: {
-        num.tryParse('1') != null ? PointerDeviceKind.mouse : PointerDeviceKind.mouse, // fallback seguro
-        PointerDeviceKind.touch,
-        PointerDeviceKind.trackpad,
-      },
-    ),
-    child: Scrollbar(
-      thumbVisibility: true,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: ticket.urlsFotos!.length,
-        itemBuilder: (context, idx) {
-          return Container(
-            width: 380,
-            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                ticket.urlsFotos![idx],
-                fit: BoxFit.cover,
-              ),
-            ),
-          );
-        },
-      ),
-    ),
-  ),
-),
-
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cerrar'),
-            )
-          ],
-        ),
-      );
-    },
-  )
-else
-  Text(
-    'Sin evidencia adjunta',
-    style: TextStyle(fontSize: 11, color: Colors.grey.shade400, fontStyle: FontStyle.italic),
-  ),
-
-
+                                                  Icon(Icons.assignment_rounded, color: _obtenerColorEstado(ticket.estado), size: 36),
+                                                  const SizedBox(width: 15),
                                                 ],
                                               ),
-                                            ),
-                                            const SizedBox(width: 20),
-                                            DropdownButton<String>(
-                                              value: ticket.estado,
-                                              icon: Icon(Icons.arrow_drop_down_circle_outlined, color: _obtenerColorEstado(ticket.estado)),
-                                              underline: const SizedBox(),
-                                              style: TextStyle(color: _obtenerColorEstado(ticket.estado), fontWeight: FontWeight.bold),
-                                              items: <String>['Pendiente', 'En Proceso', 'Resuelto']
-                                                  .map<DropdownMenuItem<String>>((String valor) {
-                                                return DropdownMenuItem<String>(
-                                                  value: valor,
-                                                  child: Text(valor),
-                                                );
-                                              }).toList(),
-                                              onChanged: (String? nuevoValor) {
-                                                if (nuevoValor != null && ticket.id != null) {
-                                                  _cambiarEstatusTicket(ticket.id!, nuevoValor);
-                                                }
-                                              },
-                                            ),
-                                          ],
+                                              Expanded(
+                                                flex: esMovil ? 0 : 1,
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(ticket.titulo, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                                    const SizedBox(height: 4),
+                                                    Text(ticket.descripcion, style: TextStyle(color: Colors.grey.shade600)),
+                                                    const SizedBox(height: 8),
+                                                    if (ticket.urlsFotos != null && ticket.urlsFotos!.isNotEmpty)
+                                                      TextButton.icon(
+                                                        icon: const Icon(Icons.image_search_rounded, size: 18),
+                                                        label: Text('Ver Evidencias (${ticket.urlsFotos!.length})'),
+                                                        onPressed: () {
+                                                          _mostrarDialogoFotos(ticket);
+                                                        },
+                                                      )
+                                                    else
+                                                      Text('Sin evidencia adjunta', style: TextStyle(fontSize: 11, color: Colors.grey.shade400, fontStyle: FontStyle.italic)),
+                                                  ],
+                                                ),
+                                              ),
+                                              Padding(
+                                                padding: EdgeInsets.only(top: esMovil ? 12 : 0),
+                                                child: DropdownButton<String>(
+                                                  value: ticket.estado,
+                                                  icon: Icon(Icons.arrow_drop_down_circle_outlined, color: _obtenerColorEstado(ticket.estado)),
+                                                  underline: const SizedBox(),
+                                                  style: TextStyle(color: _obtenerColorEstado(ticket.estado), fontWeight: FontWeight.bold),
+                                                  items: <String>['Pendiente', 'En Proceso', 'Resuelto']
+                                                      .map<DropdownMenuItem<String>>((String valor) {
+                                                    return DropdownMenuItem<String>(
+                                                      value: valor,
+                                                      child: Text(valor),
+                                                    );
+                                                  }).toList(),
+                                                  onChanged: (String? nuevoValor) {
+                                                    if (nuevoValor != null && ticket.id != null) {
+                                                      _cambiarEstatusTicket(ticket.id!, nuevoValor);
+                                                    }
+                                                  },
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                          ),
-                      ],
+                                      );
+                                    },
+                                  ),
+                          ],
+                        ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _mostrarDialogoFotos(RequerimientoModel ticket) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(ticket.titulo),
+        content: SizedBox(
+          width: 500,
+          height: 350,
+          child: ScrollConfiguration(
+            behavior: ScrollConfiguration.of(context).copyWith(
+              dragDevices: {
+                PointerDeviceKind.mouse,
+                PointerDeviceKind.touch,
+                PointerDeviceKind.trackpad,
+              },
+            ),
+            child: Scrollbar(
+              thumbVisibility: true,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: ticket.urlsFotos!.length,
+                itemBuilder: (context, idx) {
+                  return Container(
+                    width: 380,
+                    margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
                     ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        ticket.urlsFotos![idx],
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
           ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          )
         ],
       ),
     );
