@@ -243,7 +243,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                                   const SizedBox(height: 4),
                                                   Text(ticket.descripcion, style: TextStyle(color: Colors.grey.shade600)),
                                                   const SizedBox(height: 8),
-                                                 if (ticket.urlsFotos != null && ticket.urlsFotos!.isNotEmpty)
+                                                if (ticket.urlsFotos != null && ticket.urlsFotos!.isNotEmpty)
   TextButton.icon(
     icon: const Icon(Icons.image_search_rounded, size: 18),
     label: Text('Ver Evidencias Fotográficas (${ticket.urlsFotos!.length})'),
@@ -254,22 +254,30 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
           title: Text(ticket.titulo),
           content: SizedBox(
             width: 500,
-            height: 300,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: ticket.urlsFotos!.length,
-              itemBuilder: (context, idx) {
-                return Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      ticket.urlsFotos![idx],
-                      fit: BoxFit.contain,
+            height: 350,
+            child: Scrollbar(
+              thumbVisibility: true, // Fuerza a Chrome a pintar la barra de desplazamiento
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: ticket.urlsFotos!.length,
+                itemBuilder: (context, idx) {
+                  return Container(
+                    width: 380, // Fuerza un ancho fijo por celda para evitar colapsos visuales en la Web
+                    margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
                     ),
-                  ),
-                );
-              },
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        ticket.urlsFotos![idx],
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
           ),
           actions: [
@@ -287,6 +295,7 @@ else
     'Sin evidencia adjunta',
     style: TextStyle(fontSize: 11, color: Colors.grey.shade400, fontStyle: FontStyle.italic),
   ),
+
 
                                                 ],
                                               ),

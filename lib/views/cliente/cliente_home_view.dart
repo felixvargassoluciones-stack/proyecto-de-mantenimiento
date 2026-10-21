@@ -44,6 +44,7 @@ class _ClienteHomeViewState extends State<ClienteHomeView> {
       appBar: AppBar(
         title: const Text('Mis Requerimientos', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: const Color(0xFF0F2537),
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
@@ -104,20 +105,48 @@ class _ClienteHomeViewState extends State<ClienteHomeView> {
                       final ticket = tickets[index];
                       return Card(
                         margin: const EdgeInsets.symmetric(vertical: 8),
-                        child: ListTile(
-                          leading: Icon(Icons.build_circle_outlined, color: _obtenerColorEstado(ticket.estado)),
-                          title: Text(ticket.titulo, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text(ticket.descripcion),
-                          trailing: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: _obtenerColorEstado(ticket.estado).withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              ticket.estado,
-                              style: TextStyle(color: _obtenerColorEstado(ticket.estado), fontWeight: FontWeight.bold, fontSize: 12),
-                            ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Icon(Icons.build_circle_outlined, color: _obtenerColorEstado(ticket.estado), size: 36),
+                              const SizedBox(width: 15),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(ticket.titulo, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 4),
+                                    Text(ticket.descripcion, style: TextStyle(color: Colors.grey.shade600)),
+                                    const SizedBox(height: 8),
+                                    // NUEVO: Verificador dinámico de lote de imágenes para el Cliente
+                                    if (ticket.urlsFotos != null && ticket.urlsFotos!.isNotEmpty)
+                                      TextButton.icon(
+                                        icon: const Icon(Icons.image_search_rounded, size: 18),
+                                        label: Text('Ver Evidencias Fotográficas (${ticket.urlsFotos!.length})'),
+                                        onPressed: () {
+                                          _mostrarDialogoEvidencias(ticket);
+                                        },
+                                      )
+                                    else
+                                      Text('Sin evidencia adjunta', style: TextStyle(fontSize: 11, color: Colors.grey.shade400, fontStyle: FontStyle.italic)),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 20),
+                              // NUEVO: Tag visual de estado idéntico al del administrador
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: _obtenerColorEstado(ticket.estado).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  ticket.estado,
+                                  style: TextStyle(color: _obtenerColorEstado(ticket.estado), fontWeight: FontWeight.bold, fontSize: 12),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       );
@@ -132,11 +161,55 @@ class _ClienteHomeViewState extends State<ClienteHomeView> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           await Navigator.push(context, MaterialPageRoute(builder: (_) => const CrearTicketView()));
-          _cargarTickets(); // Recargar la lista al volver del formulario
+          _cargarTickets();
         },
         backgroundColor: const Color(0xFF0F2537),
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text('Nuevo Reporte', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+
+  // Modulo de visualización en carrusel optimizado para el Cliente
+  void _mostrarDialogoEvidencias(RequerimientoModel ticket) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(ticket.titulo),
+        content: SizedBox(
+          width: 500,
+          height: 350,
+          child: Scrollbar(
+            thumbVisibility: true,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: ticket.urlsFotos!.length,
+              itemBuilder: (context, idx) {
+                return Container(
+                  width: 380,
+                  margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      ticket.urlsFotos![idx],
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          )
+        ],
       ),
     );
   }
