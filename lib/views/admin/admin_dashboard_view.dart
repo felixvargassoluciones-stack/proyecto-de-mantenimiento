@@ -29,7 +29,6 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     super.initState();
     _cargarDatosGlobales();
   }
-
   Future<void> _cargarDatosGlobales() async {
     setState(() => _cargando = true);
     try {
@@ -77,6 +76,8 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
             descripcion: _todosLosTickets[index].descripcion,
             urlsFotos: _todosLosTickets[index].urlsFotos,
             estado: nuevoEstado,
+            clienteNombre: _todosLosTickets[index].clienteNombre,
+            clienteEmail: _todosLosTickets[index].clienteEmail,
           );
           _todosLosTickets[index] = ticketActualizado;
         }
@@ -92,7 +93,26 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
       );
     }
   }
+  void _borrarTicketDelSistema(int ticketId) async {
+    try {
+      await _databaseService.eliminarRequerimiento(ticketId);
+      if (!mounted) return;
+      
+      setState(() {
+        _todosLosTickets.removeWhere((t) => t.id == ticketId);
+      });
+      _cargarDatosGlobales();
 
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Requerimiento eliminado permanentemente'), backgroundColor: Colors.redAccent),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al eliminar el registro'), backgroundColor: Colors.redAccent),
+      );
+    }
+  }
   Color _obtenerColorEstado(String estado) {
     switch (estado) {
       case 'En Proceso': return Colors.blue;
@@ -101,7 +121,6 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     }
   }
 
-  // NUEVO: Formateador de fechas para el control de obra (DD/MM/AAAA)
   String _formatearFecha(DateTime? fecha) {
     if (fecha == null) return '--/--/----';
     final dia = fecha.day.toString().padLeft(2, '0');
@@ -127,7 +146,6 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
       default: return 'Control y asignación de requerimientos';
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -203,7 +221,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                             
                             if (_seccionActiva == 0) ...[
                               esMovil
-                                  ? Column( // CORREGIDO: Bloque vertical rígido para anular pantallas grises en celular
+                                  ? Column( 
                                       crossAxisAlignment: CrossAxisAlignment.stretch,
                                       children: [
                                         ModuloCard(titulo: 'Mantenimiento Correctivo', descripcion: 'Atención inmediata a fallas críticas reportadas.', icono: Icons.build_circle_rounded, colorIcono: Colors.amber.shade700, estaSeleccionado: true, onTap: () => setState(() => _seccionActiva = 1)),
@@ -225,7 +243,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                               ),
                               const SizedBox(height: 15),
                               esMovil
-                                  ? Column( // CORREGIDO: Listado de métricas fluidas para dispositivos móviles angostos
+                                  ? Column( 
                                       children: [
                                         ResumenItem(cantidad: _pendientes.toString(), etiqueta: 'Pendientes', icono: Icons.pending_actions_rounded, colorIcono: Colors.orange),
                                         const SizedBox(height: 12),
@@ -277,13 +295,19 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                                   children: [
                                                     Text(ticket.titulo, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                                                     const SizedBox(height: 6),
-                                                    
-                                                    // NUEVO: Bloque informativo de control de obra (Remitente y Fecha)
                                                     Row(
                                                       children: [
                                                         Icon(Icons.person_outline_rounded, size: 13, color: Colors.grey.shade500),
                                                         const SizedBox(width: 4),
-                                                        Expanded(child: Text('ID Cliente: ${ticket.clienteId}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis)),
+                                                        Expanded(child: Text('Cliente: ${ticket.clienteNombre ?? "Cargando..."}', style: const TextStyle(fontSize: 12, color: Color(0xFF0F2537), fontWeight: FontWeight.bold))),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Row(
+                                                      children: [
+                                                        Icon(Icons.alternate_email_rounded, size: 12, color: Colors.grey.shade500),
+                                                        const SizedBox(width: 4),
+                                                        Expanded(child: Text('Correo: ${ticket.clienteEmail ?? "Sin correo"}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600))),
                                                       ],
                                                     ),
                                                     const SizedBox(height: 2),
@@ -295,7 +319,6 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                                       ],
                                                     ),
                                                     const SizedBox(height: 8),
-                                                    
                                                     Text(ticket.descripcion, style: TextStyle(color: Colors.grey.shade700)),
                                                     const SizedBox(height: 8),
                                                     if (ticket.urlsFotos != null && ticket.urlsFotos!.isNotEmpty)
@@ -311,6 +334,31 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                                   ],
                                                 ),
                                               ),
+                                              IconButton(
+                                                icon: const Icon(Icons.delete_forever_rounded, color: Colors.redAccent, size: 24),
+                                                tooltip: 'Eliminar Ticket',
+                                                onPressed: () {
+                                                  if (ticket.id == null) return;
+                                                  showDialog(
+                                                    context: context,
+                                                    builder: (BuildContext ctx) => AlertDialog(
+                                                      title: const Text('¿Eliminar Requerimiento?'),
+                                                      content: const Text('Esta acción borrará de forma permanente el registro del sistema de control de obra y no se puede deshacer.'),
+                                                      actions: [
+                                                        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+                                                        TextButton(
+                                                          onPressed: () {
+                                                            Navigator.pop(ctx);
+                                                            _borrarTicketDelSistema(ticket.id!);
+                                                          }, 
+                                                          child: const Text('Eliminar', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                              const SizedBox(width: 10),
                                               Padding(
                                                 padding: EdgeInsets.only(top: esMovil ? 12 : 0),
                                                 child: DropdownButton<String>(
@@ -378,13 +426,12 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.grey.shade300),
                     ),
-                    // NUEVO: InteractiveViewer inyectado para habilitar zoom nativo (Mouse/Táctil)
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: InteractiveViewer(
                         clipBehavior: Clip.none,
                         minScale: 1.0,
-                        maxScale: 4.0, 
+                        maxScale: 4.0,
                         child: Image.network(
                           ticket.urlsFotos![idx],
                           fit: BoxFit.cover,

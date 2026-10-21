@@ -44,7 +44,6 @@ class _AdminClientesViewState extends State<AdminClientesView> {
       if (mounted) setState(() => _cargando = false);
     }
   }
-  // Nueva función para aprobar cuentas pendientes con un solo clic
   Future<void> _autorizarCliente(String email) async {
     setState(() => _cargando = true);
     try {
@@ -68,6 +67,26 @@ class _AdminClientesViewState extends State<AdminClientesView> {
     }
   }
 
+  // NUEVO: Función asíncrona para eliminar físicamente el perfil del usuario
+  Future<void> _eliminarCliente(String email) async {
+    setState(() => _cargando = true);
+    try {
+      await _databaseService.eliminarClientePorEmail(email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cliente eliminado permanentemente'), backgroundColor: Colors.redAccent),
+        );
+      }
+      _cargarClientes();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
+      setState(() => _cargando = false);
+    }
+  }
   Future<void> _mostrarFormularioAlta() async {
     _nombreController.clear();
     _emailController.clear();
@@ -179,6 +198,8 @@ class _AdminClientesViewState extends State<AdminClientesView> {
                   itemBuilder: (context, index) {
                     final cliente = _clientes[index];
                     final String rol = cliente['rol'] ?? 'cliente';
+                    final String nombre = cliente['nombre'] ?? 'Sin Nombre';
+                    final String email = cliente['email'] ?? '';
                     final bool esPendiente = rol == 'pendiente';
 
                     return Card(
@@ -194,9 +215,8 @@ class _AdminClientesViewState extends State<AdminClientesView> {
                         ),
                         title: Row(
                           children: [
-                            Text(cliente['nombre'] ?? 'Sin Nombre', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            Text(nombre, style: const TextStyle(fontWeight: FontWeight.bold)),
                             const SizedBox(width: 10),
-                            // Etiqueta dinámica de estado visual
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                               decoration: BoxDecoration(
@@ -214,15 +234,43 @@ class _AdminClientesViewState extends State<AdminClientesView> {
                             ),
                           ],
                         ),
-                        subtitle: Text(cliente['email'] ?? 'Sin Correo'),
-                        // Botón de acción rápida condicional para aprobación instantánea
-                        trailing: esPendiente
-                            ? IconButton(
-                                icon: const Icon(Icons.check_circle, color: Colors.green, size: 28),
+                        subtitle: Text(email),
+                        // MODIFICADO: Agrupación simétrica de botones de control y eliminación permanente
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (esPendiente)
+                              IconButton(
+                                icon: const Icon(Icons.check_circle, color: Colors.green, size: 26),
                                 tooltip: 'Autorizar Acceso',
-                                onPressed: () => _autorizarCliente(cliente['email'] ?? ''),
-                              )
-                            : const Icon(Icons.chevron_right, color: Colors.grey),
+                                onPressed: () => _autorizarCliente(email),
+                              ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_forever_rounded, color: Colors.redAccent, size: 24),
+                              tooltip: 'Eliminar Cliente',
+                              onPressed: () {
+                                if (email.isEmpty) return;
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext ctx) => AlertDialog(
+                                    title: const Text('¿Eliminar Perfil de Cliente?'),
+                                    content: Text('Esta acción borrará de forma permanente a "$nombre" ($email) del sistema de control de obra y revocaría sus accesos.'),
+                                    actions: [
+                                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.pop(ctx);
+                                          _eliminarCliente(email);
+                                        }, 
+                                        child: const Text('Eliminar', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },

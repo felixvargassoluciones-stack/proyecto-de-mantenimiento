@@ -22,11 +22,12 @@ class DatabaseService {
         .toList();
   }
 
-  // ADMIN: Obtener TODOS los requerimientos del sistema (Global)
+  // ADMIN: Obtener TODOS los requerimientos con los datos de sus Perfiles integrados
   Future<List<RequerimientoModel>> obtenerTodosLosRequerimientos() async {
+    // MODIFICADO: Realiza un Join con la tabla perfiles para traer nombre y email de una sola vez
     final response = await _supabase
         .from('requerimientos')
-        .select()
+        .select('*, perfiles(nombre, email)')
         .order('creado_el', ascending: false);
 
     return (response as List)
@@ -42,10 +43,7 @@ class DatabaseService {
         .eq('id', id);
   }
 
-
-
-    // Obtener la lista de perfiles con rol de cliente o pendientes de aprobación
-    // Obtener la lista de perfiles con rol de cliente o pendientes de aprobación
+  // Obtener la lista de perfiles con rol de cliente o pendientes de aprobación
   Future<List<Map<String, dynamic>>> obtenerClientes() async {
     try {
       final List<dynamic> response = await _supabase
@@ -60,7 +58,6 @@ class DatabaseService {
     }
   }
 
-
   // Pre-registrar un nuevo cliente desde el panel de administración
   Future<void> registrarCliente({
     required String nombre,
@@ -70,7 +67,7 @@ class DatabaseService {
       await _supabase.from('perfiles').insert({
         'nombre': nombre,
         'email': email.trim().toLowerCase(),
-        'rol': 'cliente', // Los creados manualmente por el admin entran autorizados directo
+        'rol': 'cliente',
       });
     } catch (e) {
       throw Exception('Error al registrar el cliente en la base de datos: $e');
@@ -92,9 +89,31 @@ class DatabaseService {
     }
   }
 
+  // ==========================================
+  // NUEVO: FUNCIONES DE ELIMINACIÓN PARA EL ADMIN
+  // ==========================================
 
+  // ADMIN: Eliminar un requerimiento/ticket por ID del sistema
+  Future<void> eliminarRequerimiento(int id) async {
+    try {
+      await _supabase
+          .from('requerimientos')
+          .delete()
+          .eq('id', id);
+    } catch (e) {
+      throw Exception('Error al eliminar el requerimiento: $e');
+    }
+  }
 
-
-
-
+  // ADMIN: Eliminar un perfil de cliente por su Correo Electrónico
+  Future<void> eliminarClientePorEmail(String email) async {
+    try {
+      await _supabase
+          .from('perfiles')
+          .delete()
+          .eq('email', email.trim().toLowerCase());
+    } catch (e) {
+      throw Exception('Error al eliminar el cliente: $e');
+    }
+  }
 }

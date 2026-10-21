@@ -4,9 +4,12 @@ class RequerimientoModel {
   final String clienteId;
   final String titulo;
   final String descripcion;
-  // CAMBIO CLAVE: Ahora soporta una lista de URLs de evidencias
   final List<String>? urlsFotos;
   final String estado;
+  
+  // NUEVAS PROPIEDADES: Mapeadas desde la relación foreign key de perfiles
+  final String? clienteNombre;
+  final String? clienteEmail;
 
   RequerimientoModel({
     this.id,
@@ -16,14 +19,24 @@ class RequerimientoModel {
     required this.descripcion,
     this.urlsFotos,
     this.estado = 'Pendiente',
+    this.clienteNombre,
+    this.clienteEmail,
   });
 
-  // Convierte un JSON de Supabase (con arreglo text[]) a un objeto de Flutter
+  // Convierte un JSON de Supabase (con relación integrada de perfiles) a un objeto de Flutter
   factory RequerimientoModel.fromJson(Map<String, dynamic> json) {
-    // Mapeo seguro del formato array de Postgres a List<String> en Dart
     List<String>? listaUrls;
     if (json['url_foto'] != null) {
       listaUrls = List<String>.from(json['url_foto'] as List);
+    }
+
+    // Extracción segura de los metadatos del perfil del cliente adjunto
+    String? nombre;
+    String? email;
+    if (json['perfiles'] != null) {
+      final perfilesData = json['perfiles'] as Map<String, dynamic>;
+      nombre = perfilesData['nombre'] as String?;
+      email = perfilesData['email'] as String?;
     }
 
     return RequerimientoModel(
@@ -34,18 +47,19 @@ class RequerimientoModel {
       clienteId: json['cliente_id'] as String,
       titulo: json['titulo'] as String,
       descripcion: json['descripcion'] as String,
-      urlsFotos: listaUrls, // Asignación de la lista de imágenes
+      urlsFotos: listaUrls,
       estado: json['estado'] as String? ?? 'Pendiente',
+      clienteNombre: nombre, // Asignación del nombre del remitente
+      clienteEmail: email,   // Asignación del correo del remitente
     );
   }
 
-  // Convierte un objeto de Flutter a un JSON compatible con text[] en Supabase
   Map<String, dynamic> toJson() {
     final data = <String, dynamic>{
       'cliente_id': clienteId,
       'titulo': titulo,
       'descripcion': descripcion,
-      'url_foto': urlsFotos, // Supabase detecta la lista y la guarda como arreglo text[]
+      'url_foto': urlsFotos,
       'estado': estado,
     };
     if (id != null) {
