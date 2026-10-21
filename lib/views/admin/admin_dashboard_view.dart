@@ -397,7 +397,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
     );
   }
 
-  void _mostrarDialogoFotos(RequerimientoModel ticket) {
+    void _mostrarDialogoFotos(RequerimientoModel ticket) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -419,21 +419,60 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                 scrollDirection: Axis.horizontal,
                 itemCount: ticket.urlsFotos!.length,
                 itemBuilder: (context, idx) {
-                  return Container(
-                    width: 380,
-                    margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: InteractiveViewer(
-                        clipBehavior: Clip.none,
-                        minScale: 1.0,
-                        maxScale: 4.0,
+                  final urlImagen = ticket.urlsFotos![idx];
+                  return GestureDetector(
+                    // NUEVO: Al hacer clic a la imagen, se abre en pantalla completa con super-zoom
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (_) => Dialog(
+                          backgroundColor: Colors.black.withValues(alpha: 0.9),
+                          insetPadding: const EdgeInsets.all(10), // Da un margen mínimo en el celular
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              // Contenedor interactivo para Pellizcar/Hacer Zoom y arrastrar libremente
+                              SizedBox(
+                                width: double.infinity,
+                                height: double.infinity,
+                                child: InteractiveViewer(
+                                  clipBehavior: Clip.none,
+                                  minScale: 1.0,
+                                  maxScale: 5.0, // Permite ampliar la evidencia hasta 5 veces
+                                  child: Image.network(
+                                    urlImagen,
+                                    fit: BoxFit.contain, // Mantiene las proporciones reales de la foto
+                                  ),
+                                ),
+                              ),
+                              // Botón flotante superior para cerrar la pantalla completa de forma rápida
+                              Positioned(
+                                top: 20,
+                                right: 20,
+                                child: CircleAvatar(
+                                  backgroundColor: Colors.black54,
+                                  child: IconButton(
+                                    icon: const Icon(Icons.close_rounded, color: Colors.white),
+                                    onPressed: () => Navigator.pop(context),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: 380,
+                      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
                         child: Image.network(
-                          ticket.urlsFotos![idx],
+                          urlImagen,
                           fit: BoxFit.cover,
                         ),
                       ),
@@ -453,4 +492,5 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
       ),
     );
   }
+
 }

@@ -16,13 +16,17 @@ class _LoginViewState extends State<LoginView> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   
-  // Controladores dedicados para el nuevo flujo de Registro Abierto
   final _nombreController = TextEditingController();
   final _registroEmailController = TextEditingController();
   final _registroPasswordController = TextEditingController();
   
   final _authService = AuthService();
   bool _cargando = false;
+
+  // NUEVAS VARIABLES: Controlan de forma independiente la visibilidad del ojo de la contraseña
+  bool _ocultarPasswordLogin = true;
+  bool _ocultarPasswordRegistro = true;
+
   void _intentarLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -50,7 +54,6 @@ class _LoginViewState extends State<LoginView> {
             MaterialPageRoute(builder: (_) => const ClienteHomeView()),
           );
         } else if (rol == 'pendiente') {
-          // Bloqueo de seguridad: se revoca la sesión inmediata en Supabase Auth
           await _authService.cerrarSesion();
           _mostrarError('Tu cuenta está registrada, pero se encuentra pendiente de aprobación por el administrador.');
         } else {
@@ -64,7 +67,6 @@ class _LoginViewState extends State<LoginView> {
       if (mounted) setState(() => _cargando = false);
     }
   }
-
   Future<void> _procesarRegistro() async {
     if (!_registrarKey.currentState!.validate()) return;
     Navigator.pop(context);
@@ -109,68 +111,78 @@ class _LoginViewState extends State<LoginView> {
     _registroPasswordController.dispose();
     super.dispose();
   }
+
   Future<void> _mostrarDialogoRegistro() async {
     _nombreController.clear();
     _registroEmailController.clear();
     _registroPasswordController.clear();
+    setState(() => _ocultarPasswordRegistro = true); // Resetea el ojo al abrir
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Registro de Nuevo Cliente', 
-          style: TextStyle(color: Color(0xFF0F2537), fontWeight: FontWeight.bold)),
-        content: Form(
-          key: _registrarKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('Ingresa tus datos para registrarte. Podrás iniciar sesión una vez que el administrador te autorice.',
-                  style: TextStyle(fontSize: 13, color: Colors.grey)),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: _nombreController,
-                  keyboardType: TextInputType.name,
-                  decoration: const InputDecoration(
-                    labelText: 'Nombre Completo',
-                    prefixIcon: Icon(Icons.person_outline),
+      builder: (context) => StatefulBuilder( // StatefulBuilder permite redibujar el ojo dentro de un showDialog
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Registro de Nuevo Cliente', 
+            style: TextStyle(color: Color(0xFF0F2537), fontWeight: FontWeight.bold)),
+          content: Form(
+            key: _registrarKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Ingresa tus datos para registrarte. Podrás iniciar sesión una vez que el administrador te autorice.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey)),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: _nombreController,
+                    keyboardType: TextInputType.name,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre Completo',
+                      prefixIcon: Icon(Icons.person_outline),
+                    ),
+                    validator: (v) => v == null || v.trim().isEmpty ? 'Ingresa tu nombre completo' : null,
                   ),
-                  validator: (v) => v == null || v.trim().isEmpty ? 'Ingresa tu nombre completo' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _registroEmailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Correo Electrónico',
-                    prefixIcon: Icon(Icons.email_outlined),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _registroEmailController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Correo Electrónico',
+                      prefixIcon: Icon(Icons.email_outlined),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Ingresa tu correo';
+                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(v.trim())) {
+                        return 'Ingresa un correo válido';
+                      }
+                      return null;
+                    },
                   ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Ingresa tu correo';
-                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(v.trim())) {
-                      return 'Ingresa un correo válido';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _registroPasswordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Crea tu Contraseña',
-                    prefixIcon: Icon(Icons.lock_outline),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _registroPasswordController,
+                    obscureText: _ocultarPasswordRegistro,
+                    decoration: InputDecoration(
+                      labelText: 'Crea tu Contraseña',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      // MODIFICADO: Botón del Ojo integrado para visualizar la clave en el registro
+                      suffixIcon: IconButton(
+                        icon: Icon(_ocultarPasswordRegistro ? Icons.visibility_off_rounded : Icons.visibility_rounded),
+                        onPressed: () {
+                          setDialogState(() => _ocultarPasswordRegistro = !_ocultarPasswordRegistro);
+                        },
+                      ),
+                    ),
+                    validator: (v) => v == null || v.length < 6 ? 'La contraseña debe tener mínimo 6 caracteres' : null,
                   ),
-                  validator: (v) => v == null || v.length < 6 ? 'La contraseña debe tener mínimo 6 caracteres' : null,
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -182,9 +194,9 @@ class _LoginViewState extends State<LoginView> {
           ),
         ],
       ),
-    );
-  }
-
+    ),
+  );
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -199,7 +211,6 @@ class _LoginViewState extends State<LoginView> {
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.05),
-
                 blurRadius: 15,
                 offset: const Offset(0, 5),
               ),
@@ -238,11 +249,18 @@ class _LoginViewState extends State<LoginView> {
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
+                  obscureText: _ocultarPasswordLogin,
+                  decoration: InputDecoration(
                     labelText: 'Contraseña',
-                    prefixIcon: Icon(Icons.lock_outline),
-                    border: OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    border: const OutlineInputBorder(),
+                    // MODIFICADO: Botón del Ojo integrado para visualizar la clave en el panel de Login principal
+                    suffixIcon: IconButton(
+                      icon: Icon(_ocultarPasswordLogin ? Icons.visibility_off_rounded : Icons.visibility_rounded),
+                      onPressed: () {
+                        setState(() => _ocultarPasswordLogin = !_ocultarPasswordLogin);
+                      },
+                    ),
                   ),
                   validator: (v) => v == null || v.isEmpty ? 'Ingresa tu contraseña' : null,
                 ),
