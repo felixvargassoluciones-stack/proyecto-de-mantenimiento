@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../models/requerimiento_model.dart';
 import '../../services/auth_service.dart';
-import '../../services/database_service.dart';
+
 import '../auth/login_view.dart';
 import 'crear_ticket_view.dart';
 import 'dart:ui';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ClienteHomeView extends StatefulWidget {
   const ClienteHomeView({super.key});
@@ -12,23 +13,15 @@ class ClienteHomeView extends StatefulWidget {
   @override
   State<ClienteHomeView> createState() => _ClienteHomeViewState();
 }
-
 class _ClienteHomeViewState extends State<ClienteHomeView> {
   final _authService = AuthService();
-  final _databaseService = DatabaseService();
-  late Future<List<RequerimientoModel>> _futureTickets;
+  
+  String _userId = '';
 
   @override
   void initState() {
     super.initState();
-    _cargarTickets();
-  }
-
-  void _cargarTickets() {
-    final String userId = _authService.usuarioActual?.id ?? '';
-    setState(() {
-      _futureTickets = _databaseService.obtenerRequerimientosCliente(userId);
-    });
+    _userId = _authService.usuarioActual?.id ?? '';
   }
 
   Color _obtenerColorEstado(String estado) {
@@ -48,7 +41,7 @@ class _ClienteHomeViewState extends State<ClienteHomeView> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: _cargarTickets,
+            onPressed: () => setState(() {}),
           ),
           IconButton(
             icon: const Icon(Icons.logout_rounded, color: Colors.white),
@@ -77,16 +70,22 @@ class _ClienteHomeViewState extends State<ClienteHomeView> {
             ),
             const SizedBox(height: 20),
             Expanded(
-              child: FutureBuilder<List<RequerimientoModel>>(
-                future: _futureTickets,
+              child: StreamBuilder<List<Map<String, dynamic>>>(
+                stream: Supabase.instance.client
+                    .from('requerimientos')
+                    .stream(primaryKey: ['id'])
+                    .eq('cliente_id', _userId)
+                    .order('creado_el', ascending: false),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
                   if (snapshot.hasError) {
-                    return const Center(child: Text('Error al cargar los reportes de Supabase.'));
+                    return const Center(child: Text('Error al conectar con el servidor en vivo.'));
                   }
-                  final tickets = snapshot.data ?? [];
+                  
+                  final lasFilas = snapshot.data ?? [];
+                  final tickets = lasFilas.map((json) => RequerimientoModel.fromJson(json)).toList();
                   if (tickets.isEmpty) {
                     return Center(
                       child: Column(
@@ -159,7 +158,7 @@ class _ClienteHomeViewState extends State<ClienteHomeView> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           await Navigator.push(context, MaterialPageRoute(builder: (_) => const CrearTicketView()));
-          _cargarTickets();
+          setState(() {});
         },
         backgroundColor: const Color(0xFF0F2537),
         icon: const Icon(Icons.add, color: Colors.white),
@@ -167,6 +166,7 @@ class _ClienteHomeViewState extends State<ClienteHomeView> {
       ),
     );
   }
+
   void _mostrarDialogoEvidencias(RequerimientoModel ticket) {
     showDialog(
       context: context,
@@ -191,7 +191,6 @@ class _ClienteHomeViewState extends State<ClienteHomeView> {
                 itemBuilder: (context, idx) {
                   final urlImagen = ticket.urlsFotos![idx];
                   return GestureDetector(
-                    // MODIFICADO: Añadido soporte táctil y clic para abrir pantalla completa en el Cliente con súper zoom
                     onTap: () {
                       showDialog(
                         context: context,

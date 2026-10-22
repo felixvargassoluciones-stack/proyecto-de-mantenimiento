@@ -14,50 +14,26 @@ class AdminDashboardView extends StatefulWidget {
   @override
   State<AdminDashboardView> createState() => _AdminDashboardViewState();
 }
-
 class _AdminDashboardViewState extends State<AdminDashboardView> {
   int _seccionActiva = 0; 
   final _databaseService = DatabaseService();
-  
-  int _pendientes = 0;
-  int _enProceso = 0;
-  int _resueltos = 0;
-  bool _cargando = true;
   List<RequerimientoModel> _todosLosTickets = [];
 
   @override
   void initState() {
     super.initState();
-    _cargarDatosGlobales();
-  }  Future<void> _cargarDatosGlobales() async {
-    setState(() => _cargando = true);
+    _inicializarCache();
+  }
+
+  Future<void> _inicializarCache() async {
     try {
       final todos = await _databaseService.obtenerTodosLosRequerimientos();
-      
-      int p = 0;
-      int ep = 0;
-      int r = 0;
-
-      for (var ticket in todos) {
-        if (ticket.estado == 'En Proceso') {
-          ep++;
-        } else if (ticket.estado == 'Resuelto') {
-          r++;
-        } else {
-          p++;
-        }
+      if (mounted) {
+        setState(() {
+          _todosLosTickets = todos;
+        });
       }
-
-      setState(() {
-        _todosLosTickets = todos;
-        _pendientes = p;
-        _enProceso = ep;
-        _resueltos = r;
-        _cargando = false;
-      });
-    } catch (e) {
-      setState(() => _cargando = false);
-    }
+    } catch (_) {}
   }
   void _cambiarEstatusTicket(int ticketId, String nuevoEstado) async {
     try {
@@ -101,7 +77,6 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
       setState(() {
         _todosLosTickets.removeWhere((t) => t.id == ticketId);
       });
-      _cargarDatosGlobales();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Requerimiento eliminado permanentemente'), backgroundColor: Colors.redAccent),
@@ -113,6 +88,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
       );
     }
   }
+
   Color _obtenerColorEstado(String estado) {
     switch (estado) {
       case 'En Proceso': return Colors.blue;
@@ -120,7 +96,6 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
       default: return Colors.orange;
     }
   }
-
   String _formatearFecha(DateTime? fecha) {
     if (fecha == null) return '--/--/----';
     final dia = fecha.day.toString().padLeft(2, '0');
@@ -162,142 +137,146 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
           },
         );
 
-        return Scaffold(
-          appBar: esMovil
-              ? AppBar(
-                  backgroundColor: const Color(0xFF0F2537),
-                  title: Text(_obtenerTituloEncabezado(), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                  iconTheme: const IconThemeData(color: Colors.white),
-                  actions: [
-                    IconButton(
-                      icon: const Icon(Icons.refresh_rounded),
-                      onPressed: _cargarDatosGlobales,
-                    ),
-                  ],
-                )
-              : null,
-          drawer: esMovil ? Drawer(child: sidebarWidget) : null,
-          body: Row(
-            children: [
-              if (!esMovil) sidebarWidget,
-              Expanded(
-                child: Container(
-                  color: const Color(0xFFF4F6F9),
-                  padding: EdgeInsets.all(esMovil ? 16 : 30),
-                  child: _seccionActiva == 2 
-                    ? AdminClientesView(key: UniqueKey()) 
-                    : _cargando 
-                      ? const Center(child: CircularProgressIndicator())
-                      : ListView( 
-                          children: [
-                            if (!esMovil) ...[
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          _obtenerTituloEncabezado(),
-                                          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF0F2537)),
-                                        ),
-                                        const SizedBox(height: 5),
-                                        Text(
-                                          _obtenerSubtituloEncabezado(),
-                                          style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.refresh_rounded, color: Color(0xFF0F2537), size: 28),
-                                    onPressed: _cargarDatosGlobales,
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 25),
-                            ],
-                            
-                            if (_seccionActiva == 0) ...[
-                              esMovil
-                                  ? Column( 
-                                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                                      children: [
-                                        ModuloCard(titulo: 'Mantenimiento Correctivo', descripcion: 'Atención inmediata a fallas críticas reportadas.', icono: Icons.build_circle_rounded, colorIcono: Colors.amber.shade700, estaSeleccionado: true, onTap: () => setState(() => _seccionActiva = 1)),
-                                        const SizedBox(height: 15),
-                                        ModuloCard(titulo: 'Mantenimiento Preventivo', descripcion: 'Programación de revisiones periódicas.', icono: Icons.verified_user_rounded, colorIcono: Colors.green.shade600, estaSeleccionado: false),
-                                      ],
-                                    )
-                                  : Row(
-                                      children: [
-                                        Expanded(child: ModuloCard(titulo: 'Mantenimiento Correctivo', descripcion: 'Atención inmediata a fallas críticas reportadas.', icono: Icons.build_circle_rounded, colorIcono: Colors.amber.shade700, estaSeleccionado: true, onTap: () => setState(() => _seccionActiva = 1))),
-                                        const SizedBox(width: 20),
-                                        Expanded(child: ModuloCard(titulo: 'Mantenimiento Preventivo', descripcion: 'Programación de revisiones periódicas.', icono: Icons.verified_user_rounded, colorIcono: Colors.green.shade600, estaSeleccionado: false)),
-                                      ],
-                                    ),
-                              const SizedBox(height: 40),
-                              const Text(
-                                'Resumen Operativo Global',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F2537)),
-                              ),
-                              const SizedBox(height: 15),
-                              esMovil
-                                  ? Column( 
-                                      children: [
-                                        ResumenItem(cantidad: _pendientes.toString(), etiqueta: 'Pendientes', icono: Icons.pending_actions_rounded, colorIcono: Colors.orange),
-                                        const SizedBox(height: 12),
-                                        ResumenItem(cantidad: _enProceso.toString(), etiqueta: 'En Proceso', icono: Icons.loop_rounded, colorIcono: Colors.blue),
-                                        const SizedBox(height: 12),
-                                        ResumenItem(cantidad: _resueltos.toString(), etiqueta: 'Resueltos', icono: Icons.check_circle_outline_rounded, colorIcono: Colors.green),
-                                      ],
-                                    )
-                                  : Row(
-                                      children: [
-                                        Expanded(child: ResumenItem(cantidad: _pendientes.toString(), etiqueta: 'Requerimientos Pendientes', icono: Icons.pending_actions_rounded, colorIcono: Colors.orange)),
-                                        const SizedBox(width: 20),
-                                        Expanded(child: ResumenItem(cantidad: _enProceso.toString(), etiqueta: 'En Proceso de Atención', icono: Icons.loop_rounded, colorIcono: Colors.blue)),
-                                        const SizedBox(width: 20),
-                                        Expanded(child: ResumenItem(cantidad: _resueltos.toString(), etiqueta: 'Tickets Resueltos', icono: Icons.check_circle_outline_rounded, colorIcono: Colors.green)),
-                                      ],
-                                    ),
-                            ],
-                            // Vista 1: Control de Registros Operativos (MODIFICADO A STREAMBUILDER EN VIVO)
-                            if (_seccionActiva == 1)
-                              StreamBuilder<List<Map<String, dynamic>>>(
-                                stream: Supabase.instance.client.from('requerimientos').stream(primaryKey: ['id']).order('creado_el', ascending: false),
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState == ConnectionState.waiting && _todosLosTickets.isEmpty) {
-                                    return const Center(child: CircularProgressIndicator());
-                                  }
-                                  
-                                  // Al llegar un cambio por el socket Realtime, cruzamos la información en memoria
-                                  final lasFilas = snapshot.data ?? [];
-                                  List<RequerimientoModel> ticketsEnVivo = lasFilas.map((json) {
-                                    final modeloBase = RequerimientoModel.fromJson(json);
-                                    // Mantiene los nombres precargados cruzados por el Join para evitar textos en blanco
-                                    final cacheIndex = _todosLosTickets.indexWhere((t) => t.id == modeloBase.id);
-                                    return RequerimientoModel(
-                                      id: modeloBase.id,
-                                      creadoEl: modeloBase.creadoEl,
-                                      clienteId: modeloBase.clienteId,
-                                      titulo: modeloBase.titulo,
-                                      descripcion: modeloBase.descripcion,
-                                      urlsFotos: modeloBase.urlsFotos,
-                                      estado: modeloBase.estado,
-                                      clienteNombre: cacheIndex != -1 ? _todosLosTickets[cacheIndex].clienteNombre : 'Usuario de Obra',
-                                      clienteEmail: cacheIndex != -1 ? _todosLosTickets[cacheIndex].clienteEmail : 'Sincronizando...',
-                                    );
-                                  }).toList();
+        return StreamBuilder<List<Map<String, dynamic>>>(
+          stream: Supabase.instance.client.from('requerimientos').stream(primaryKey: ['id']).order('creado_el', ascending: false),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting && _todosLosTickets.isEmpty) {
+              return const Scaffold(body: Center(child: CircularProgressIndicator()));
+            }
 
-                                  if (ticketsEnVivo.isEmpty) {
-                                    return const Padding(
-                                      padding: EdgeInsets.symmetric(vertical: 40),
-                                      child: Center(child: Text('No hay requerimientos registrados en el sistema.')),
-                                    );
-                                  }
+            final lasFilas = snapshot.data ?? [];
+            int p = 0;
+            int ep = 0;
+            int r = 0;
 
-                                  return ListView.builder(
+            List<RequerimientoModel> ticketsEnVivo = lasFilas.map((json) {
+              final modeloBase = RequerimientoModel.fromJson(json);
+              if (modeloBase.estado == 'En Proceso') {
+                ep++;
+              } else if (modeloBase.estado == 'Resuelto') {
+                r++;
+              } else {
+                p++;
+              }
+
+              final cacheIndex = _todosLosTickets.indexWhere((t) => t.id == modeloBase.id);
+              return RequerimientoModel(
+                id: modeloBase.id,
+                creadoEl: modeloBase.creadoEl,
+                clienteId: modeloBase.clienteId,
+                titulo: modeloBase.titulo,
+                descripcion: modeloBase.descripcion,
+                urlsFotos: modeloBase.urlsFotos,
+                estado: modeloBase.estado,
+                clienteNombre: cacheIndex != -1 ? _todosLosTickets[cacheIndex].clienteNombre : 'Usuario de Obra',
+                clienteEmail: cacheIndex != -1 ? _todosLosTickets[cacheIndex].clienteEmail : 'Sincronizando...',
+              );
+            }).toList();
+            return Scaffold(
+              appBar: esMovil
+                  ? AppBar(
+                      backgroundColor: const Color(0xFF0F2537),
+                      title: Text(_obtenerTituloEncabezado(), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      iconTheme: const IconThemeData(color: Colors.white),
+                      actions: [
+                        IconButton(
+                          icon: const Icon(Icons.refresh_rounded),
+                          onPressed: () => setState(() {}),
+                        ),
+                      ],
+                    )
+                  : null,
+              drawer: esMovil ? Drawer(child: sidebarWidget) : null,
+              body: Row(
+                children: [
+                  if (!esMovil) sidebarWidget,
+                  Expanded(
+                    child: Container(
+                      color: const Color(0xFFF4F6F9),
+                      padding: EdgeInsets.all(esMovil ? 16 : 30),
+                      child: _seccionActiva == 2 
+                        ? AdminClientesView(key: UniqueKey()) 
+                        : ListView( 
+                            children: [
+                              if (!esMovil) ...[
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _obtenerTituloEncabezado(),
+                                            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF0F2537)),
+                                          ),
+                                          const SizedBox(height: 5),
+                                          Text(
+                                            _obtenerSubtituloEncabezado(),
+                                            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.refresh_rounded, color: Color(0xFF0F2537), size: 28),
+                                      onPressed: () => setState(() {}),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 25),
+                              ],
+                              if (_seccionActiva == 0) ...[
+                                esMovil
+                                    ? Column( 
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        children: [
+                                          ModuloCard(titulo: 'Mantenimiento Correctivo', descripcion: 'Atención inmediata a fallas críticas reportadas.', icono: Icons.build_circle_rounded, colorIcono: Colors.amber.shade700, estaSeleccionado: true, onTap: () => setState(() => _seccionActiva = 1)),
+                                          const SizedBox(height: 15),
+                                          ModuloCard(titulo: 'Mantenimiento Preventivo', descripcion: 'Programación de revisiones periódicas.', icono: Icons.verified_user_rounded, colorIcono: Colors.green.shade600, estaSeleccionado: false),
+                                        ],
+                                      )
+                                    : Row(
+                                        children: [
+                                          Expanded(child: ModuloCard(titulo: 'Mantenimiento Correctivo', descripcion: 'Atención inmediata a fallas críticas reportadas.', icono: Icons.build_circle_rounded, colorIcono: Colors.amber.shade700, estaSeleccionado: true, onTap: () => setState(() => _seccionActiva = 1))),
+                                          const SizedBox(width: 20),
+                                          Expanded(child: ModuloCard(titulo: 'Mantenimiento Preventivo', descripcion: 'Programación de revisiones periódicas.', icono: Icons.verified_user_rounded, colorIcono: Colors.green.shade600, estaSeleccionado: false)),
+                                        ],
+                                      ),
+                                const SizedBox(height: 40),
+                                const Text(
+                                  'Resumen Operativo Global',
+                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F2537)),
+                                ),
+                                const SizedBox(height: 15),
+                                esMovil
+                                    ? Column( 
+                                        children: [
+                                          ResumenItem(cantidad: p.toString(), etiqueta: 'Pendientes', icono: Icons.pending_actions_rounded, colorIcono: Colors.orange),
+                                          const SizedBox(height: 12),
+                                          ResumenItem(cantidad: ep.toString(), etiqueta: 'En Proceso', icono: Icons.loop_rounded, colorIcono: Colors.blue),
+                                          const SizedBox(height: 12),
+                                          ResumenItem(cantidad: r.toString(), etiqueta: 'Resueltos', icono: Icons.check_circle_outline_rounded, colorIcono: Colors.green),
+                                        ],
+                                      )
+                                    : Row(
+                                        children: [
+                                          Expanded(child: ResumenItem(cantidad: p.toString(), etiqueta: 'Requerimientos Pendientes', icono: Icons.pending_actions_rounded, colorIcono: Colors.orange)),
+                                          const SizedBox(width: 20),
+                                          Expanded(child: ResumenItem(cantidad: ep.toString(), etiqueta: 'En Proceso de Atención', icono: Icons.loop_rounded, colorIcono: Colors.blue)),
+                                          const SizedBox(width: 20),
+                                          Expanded(child: ResumenItem(cantidad: r.toString(), etiqueta: 'Tickets Resueltos', icono: Icons.check_circle_outline_rounded, colorIcono: Colors.green)),
+                                        ],
+                                      ),
+                              ],
+                              if (_seccionActiva == 1) ...[
+                                if (ticketsEnVivo.isEmpty)
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 40),
+                                    child: Center(child: Text('No hay requerimientos registrados en el sistema.')),
+                                  )
+                                else
+                                  ListView.builder(
                                     shrinkWrap: true,
                                     physics: const NeverScrollableScrollPhysics(), 
                                     itemCount: ticketsEnVivo.length,
@@ -354,9 +333,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                                       TextButton.icon(
                                                         icon: const Icon(Icons.image_search_rounded, size: 18),
                                                         label: Text('Ver Evidencias (${ticket.urlsFotos!.length})'),
-                                                        onPressed: () {
-                                                          _mostrarDialogoFotos(ticket);
-                                                        },
+                                                        onPressed: () => _mostrarDialogoFotos(ticket),
                                                       )
                                                     else
                                                       Text('Sin evidencia adjunta', style: TextStyle(fontSize: 11, color: Colors.grey.shade400, fontStyle: FontStyle.italic)),
@@ -414,20 +391,20 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                                         ),
                                       );
                                     },
-                                  );
-                                },
-                              ),
-                          ],
-                        ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
+                                  )
+                              ],
+                            ],
+                          ),
+                    ),
+                  ),
+],
+),
+);
+},
+);
+},
+);
+}
   void _mostrarDialogoFotos(RequerimientoModel ticket) {
     showDialog(
       context: context,
