@@ -185,7 +185,7 @@ class _AdminDashboardViewState extends State<AdminDashboardView> {
                   color: const Color(0xFFF4F6F9),
                   padding: EdgeInsets.all(esMovil ? 16 : 30),
                   child: _seccionActiva == 2 
-                    ? const AdminClientesView() 
+                    ? AdminClientesView(key: UniqueKey()) 
                     : _cargando 
                       ? const Center(child: CircularProgressIndicator())
                       : ListView( 
